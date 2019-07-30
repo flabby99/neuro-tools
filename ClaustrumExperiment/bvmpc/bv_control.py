@@ -1,9 +1,9 @@
 """Control script for MEDPC behaviour analysis."""
 import os
 import numpy as np
-from bv_parse_sessions import SessionExtractor, Session
-import bv_analyse as bv_an
-from bv_utils import make_dir_if_not_exists, print_h5
+from bvmpc.bv_parse_sessions import SessionExtractor, Session
+import bvmpc.bv_analyse as bv_an
+from bvmpc.bv_utils import make_dir_if_not_exists, print_h5
 
 
 def convert_to_hdf5(filename, out_dir):

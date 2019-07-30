@@ -38,14 +38,26 @@ class SessionInfo:
             &#34;experiment&#34;, &#34;group&#34;,
             &#34;box&#34;, &#34;start_time&#34;, &#34;end_time&#34;, &#34;name&#34;]
 
+        self.metadata_start_idx = [
+            len(&#34;Start Date: &#34;),
+            len(&#34;End Date: &#34;),
+            len(&#34;Subject: &#34;),
+            len(&#34;Experiment: &#34;),
+            len(&#34;Group: &#34;),
+            len(&#34;Box: &#34;),
+            len(&#34;Start Time: &#34;),
+            len(&#34;End Time: &#34;),
+            len(&#34;MSN: &#34;)
+        ]
+
         self.session_info_dict = {}
 
         # Empty keys that should probably be updated at some stage
-        self.session_info_dict[&#39;MSN: 2_MagazineHabituation_p&#39;] = None
-        self.session_info_dict[&#39;MSN: 3_LeverHabituation_p&#39;] = None
-        self.session_info_dict[&#39;MSN: DNMTS&#39;] = None
+        self.session_info_dict[&#39;2_MagazineHabituation_p&#39;] = None
+        self.session_info_dict[&#39;3_LeverHabituation_p&#39;] = None
+        self.session_info_dict[&#39;DNMTS&#39;] = None
 
-        self.session_info_dict[&#39;MSN: 4_LeverTraining_p&#39;] = (
+        self.session_info_dict[&#39;4_LeverTraining_p&#39;] = (
             np.array([
                 [&#39;A:&#39;, &#39;B:&#39;, &#39;Experiment Variables&#39;],
                 [&#39;D:&#39;, &#39;E:&#39;, &#39;Reward&#39;],
@@ -57,7 +69,7 @@ class SessionInfo:
                 [&#39;R:&#39;, &#39;END&#39;, &#39;R&#39;]
             ]))
 
-        self.session_info_dict[&#39;MSN: 5a_FixedRatio_p&#39;] = (
+        self.session_info_dict[&#39;5a_FixedRatio_p&#39;] = (
             np.array([
                 [&#39;A:&#39;, &#39;B:&#39;, &#39;Experiment Variables&#39;],
                 [&#39;D:&#39;, &#39;E:&#39;, &#39;Reward&#39;],
@@ -68,7 +80,7 @@ class SessionInfo:
                 [&#39;R:&#39;, &#39;END&#39;, &#39;R&#39;]
             ]))
 
-        self.session_info_dict[&#39;MSN: 5b_FixedInterval_p&#39;] = (
+        self.session_info_dict[&#39;5b_FixedInterval_p&#39;] = (
             np.array([
                 [&#39;A:&#39;, &#39;B:&#39;, &#39;Experiment Variables&#39;],
                 [&#39;D:&#39;, &#39;E:&#39;, &#39;Reward&#39;],
@@ -78,7 +90,7 @@ class SessionInfo:
                 [&#39;R:&#39;, &#39;END&#39;, &#39;L&#39;]
             ]))
 
-        self.session_info_dict[&#39;MSN: 6_RandomisedBlocks_p&#39;] = (
+        self.session_info_dict[&#39;6_RandomisedBlocks_p&#39;] = (
             np.array([
                 [&#39;A:&#39;, &#39;B:&#39;, &#39;Experiment Variables&#39;],
                 [&#39;D:&#39;, &#39;E:&#39;, &#39;Reward&#39;],
@@ -133,7 +145,25 @@ class SessionInfo:
         &#34;&#34;&#34;
         if key:
             return self.metadata_info.index(key)
-        return self.metadata_info</code></pre>
+        return self.metadata_info
+
+    def get_metadata_start(self, idx=None):
+        &#34;&#34;&#34;
+        Return the start index of the metadata information.
+
+        Parameters
+        ----------
+        idx : int
+            The index for which to return the start point.
+
+        Returns
+        -------
+        int : The start index for the information
+        List : If idx is None, all the start indices.
+        &#34;&#34;&#34;
+        if idx is not None:
+            return self.metadata_start_idx[idx]
+        return self.metadata_start_idx</code></pre>
 </details>
 </section>
 <section>
@@ -163,14 +193,26 @@ class SessionInfo:
             &#34;experiment&#34;, &#34;group&#34;,
             &#34;box&#34;, &#34;start_time&#34;, &#34;end_time&#34;, &#34;name&#34;]
 
+        self.metadata_start_idx = [
+            len(&#34;Start Date: &#34;),
+            len(&#34;End Date: &#34;),
+            len(&#34;Subject: &#34;),
+            len(&#34;Experiment: &#34;),
+            len(&#34;Group: &#34;),
+            len(&#34;Box: &#34;),
+            len(&#34;Start Time: &#34;),
+            len(&#34;End Time: &#34;),
+            len(&#34;MSN: &#34;)
+        ]
+
         self.session_info_dict = {}
 
         # Empty keys that should probably be updated at some stage
-        self.session_info_dict[&#39;MSN: 2_MagazineHabituation_p&#39;] = None
-        self.session_info_dict[&#39;MSN: 3_LeverHabituation_p&#39;] = None
-        self.session_info_dict[&#39;MSN: DNMTS&#39;] = None
+        self.session_info_dict[&#39;2_MagazineHabituation_p&#39;] = None
+        self.session_info_dict[&#39;3_LeverHabituation_p&#39;] = None
+        self.session_info_dict[&#39;DNMTS&#39;] = None
 
-        self.session_info_dict[&#39;MSN: 4_LeverTraining_p&#39;] = (
+        self.session_info_dict[&#39;4_LeverTraining_p&#39;] = (
             np.array([
                 [&#39;A:&#39;, &#39;B:&#39;, &#39;Experiment Variables&#39;],
                 [&#39;D:&#39;, &#39;E:&#39;, &#39;Reward&#39;],
@@ -182,7 +224,7 @@ class SessionInfo:
                 [&#39;R:&#39;, &#39;END&#39;, &#39;R&#39;]
             ]))
 
-        self.session_info_dict[&#39;MSN: 5a_FixedRatio_p&#39;] = (
+        self.session_info_dict[&#39;5a_FixedRatio_p&#39;] = (
             np.array([
                 [&#39;A:&#39;, &#39;B:&#39;, &#39;Experiment Variables&#39;],
                 [&#39;D:&#39;, &#39;E:&#39;, &#39;Reward&#39;],
@@ -193,7 +235,7 @@ class SessionInfo:
                 [&#39;R:&#39;, &#39;END&#39;, &#39;R&#39;]
             ]))
 
-        self.session_info_dict[&#39;MSN: 5b_FixedInterval_p&#39;] = (
+        self.session_info_dict[&#39;5b_FixedInterval_p&#39;] = (
             np.array([
                 [&#39;A:&#39;, &#39;B:&#39;, &#39;Experiment Variables&#39;],
                 [&#39;D:&#39;, &#39;E:&#39;, &#39;Reward&#39;],
@@ -203,7 +245,7 @@ class SessionInfo:
                 [&#39;R:&#39;, &#39;END&#39;, &#39;L&#39;]
             ]))
 
-        self.session_info_dict[&#39;MSN: 6_RandomisedBlocks_p&#39;] = (
+        self.session_info_dict[&#39;6_RandomisedBlocks_p&#39;] = (
             np.array([
                 [&#39;A:&#39;, &#39;B:&#39;, &#39;Experiment Variables&#39;],
                 [&#39;D:&#39;, &#39;E:&#39;, &#39;Reward&#39;],
@@ -258,7 +300,25 @@ class SessionInfo:
         &#34;&#34;&#34;
         if key:
             return self.metadata_info.index(key)
-        return self.metadata_info</code></pre>
+        return self.metadata_info
+
+    def get_metadata_start(self, idx=None):
+        &#34;&#34;&#34;
+        Return the start index of the metadata information.
+
+        Parameters
+        ----------
+        idx : int
+            The index for which to return the start point.
+
+        Returns
+        -------
+        int : The start index for the information
+        List : If idx is None, all the start indices.
+        &#34;&#34;&#34;
+        if idx is not None:
+            return self.metadata_start_idx[idx]
+        return self.metadata_start_idx</code></pre>
 </details>
 <h3>Methods</h3>
 <dl>
@@ -298,6 +358,43 @@ List : if key is None, all the keys.</p></section>
     if key:
         return self.metadata_info.index(key)
     return self.metadata_info</code></pre>
+</details>
+</dd>
+<dt id="bvmpc.bv_session_config.SessionInfo.get_metadata_start"><code class="name flex">
+<span>def <span class="ident">get_metadata_start</span></span>(<span>self, idx=None)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Return the start index of the metadata information.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>idx</code></strong> :&ensp;<code>int</code></dt>
+<dd>The index for which to return the start point.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>int</code></strong> :&ensp;<code>The</code> <code>start</code> <code>index</code> <code>for</code> <code>the</code> <code>information</code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<p>List : If idx is None, all the start indices.</p></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def get_metadata_start(self, idx=None):
+    &#34;&#34;&#34;
+    Return the start index of the metadata information.
+
+    Parameters
+    ----------
+    idx : int
+        The index for which to return the start point.
+
+    Returns
+    -------
+    int : The start index for the information
+    List : If idx is None, all the start indices.
+    &#34;&#34;&#34;
+    if idx is not None:
+        return self.metadata_start_idx[idx]
+    return self.metadata_start_idx</code></pre>
 </details>
 </dd>
 <dt id="bvmpc.bv_session_config.SessionInfo.get_session_type_info"><code class="name flex">
@@ -360,6 +457,7 @@ Dict: if key is None, all the mappings.</p></section>
 <h4><code><a title="bvmpc.bv_session_config.SessionInfo" href="#bvmpc.bv_session_config.SessionInfo">SessionInfo</a></code></h4>
 <ul class="">
 <li><code><a title="bvmpc.bv_session_config.SessionInfo.get_metadata" href="#bvmpc.bv_session_config.SessionInfo.get_metadata">get_metadata</a></code></li>
+<li><code><a title="bvmpc.bv_session_config.SessionInfo.get_metadata_start" href="#bvmpc.bv_session_config.SessionInfo.get_metadata_start">get_metadata_start</a></code></li>
 <li><code><a title="bvmpc.bv_session_config.SessionInfo.get_session_type_info" href="#bvmpc.bv_session_config.SessionInfo.get_session_type_info">get_session_type_info</a></code></li>
 </ul>
 </li>

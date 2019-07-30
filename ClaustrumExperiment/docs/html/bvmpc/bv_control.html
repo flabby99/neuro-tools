@@ -26,19 +26,39 @@
 <pre><code class="python">&#34;&#34;&#34;Control script for MEDPC behaviour analysis.&#34;&#34;&#34;
 import os
 import numpy as np
-from bvmpc.bv_parse_sessions import SessionExtractor
+from bvmpc.bv_parse_sessions import SessionExtractor, Session
 import bvmpc.bv_analyse as bv_an
-from bvmpc.bv_utils import make_dir_if_not_exists
+from bvmpc.bv_utils import make_dir_if_not_exists, print_h5
 
 
-def main(filename, out_dir):
+def convert_to_hdf5(filename, out_dir):
+    &#34;&#34;&#34;Convert all sessions in filename to hdf5 and store in out_dir.&#34;&#34;&#34;
+    make_dir_if_not_exists(out_dir)
+
+    s_extractor = SessionExtractor(filename, verbose=True)
+
+    for s in s_extractor:  # Batch run for file
+        s.save_to_h5(out_dir)
+
+
+def load_hdf5(filename, out_dir):
+    print_h5(filename)
+    session = Session(h5_file=filename)
+    print(session)
+
+    bv_an.IRT(session, out_dir, False)
+    bv_an.cumplot(session, out_dir, False)
+    return session
+
+
+def run_mpc_file(filename, out_dir):
     &#34;&#34;&#34;Take in a filename and out_dir then run the main control logic.&#34;&#34;&#34;
     make_dir_if_not_exists(out_dir)
 
     s_extractor = SessionExtractor(filename, verbose=True)
-    print(s_extractor)
 
     for s in s_extractor:  # Batch run for file
+
         time_taken = s.time_taken()
         timestamps = s.get_arrays()
 
@@ -63,12 +83,18 @@ if __name__ == &#34;__main__&#34;:
     #        if os.path.isfile(filename):
     #            main(filename)
     #    # Running single session files
-    filename = r&#34;F:\PhD (Shane O&#39;Mara)\Operant Data\IR Discrimination Pilot 1\!2019-07-28&#34;
+    # filename = r&#34;F:\PhD (Shane O&#39;Mara)\Operant Data\IR Discrimination Pilot 1\!2019-07-28&#34;
     # filename = r&#34;G:\test&#34;
+    # filename = r&#34;/home/sean/Documents/Data/!2019-07-22&#34;
 
-    out_dir = r&#34;F:\PhD (Shane O&#39;Mara)\Operant Data\IR Discrimination Pilot 1\Plots&#34;
+    # out_dir = r&#34;F:\PhD (Shane O&#39;Mara)\Operant Data\IR Discrimination Pilot 1\Plots&#34;
     # out_dir = r&#34;G:\out_plots&#34;
-    main(filename, out_dir)</code></pre>
+    out_dir = r&#34;/home/sean/Documents/Data/results&#34;
+    # run_mpc_file(filename, out_dir)
+
+    filename = r&#34;/home/sean/Documents/Data/h5_files/1_07-22-19_11-30_5a_FixedRatio_p.h5&#34;
+
+    load_hdf5(filename, out_dir)</code></pre>
 </details>
 </section>
 <section>
@@ -78,21 +104,55 @@ if __name__ == &#34;__main__&#34;:
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="bvmpc.bv_control.main"><code class="name flex">
-<span>def <span class="ident">main</span></span>(<span>filename, out_dir)</span>
+<dt id="bvmpc.bv_control.convert_to_hdf5"><code class="name flex">
+<span>def <span class="ident">convert_to_hdf5</span></span>(<span>filename, out_dir)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Convert all sessions in filename to hdf5 and store in out_dir.</p></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def convert_to_hdf5(filename, out_dir):
+    &#34;&#34;&#34;Convert all sessions in filename to hdf5 and store in out_dir.&#34;&#34;&#34;
+    make_dir_if_not_exists(out_dir)
+
+    s_extractor = SessionExtractor(filename, verbose=True)
+
+    for s in s_extractor:  # Batch run for file
+        s.save_to_h5(out_dir)</code></pre>
+</details>
+</dd>
+<dt id="bvmpc.bv_control.load_hdf5"><code class="name flex">
+<span>def <span class="ident">load_hdf5</span></span>(<span>filename, out_dir)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def load_hdf5(filename, out_dir):
+    print_h5(filename)
+    session = Session(h5_file=filename)
+    print(session)
+
+    bv_an.IRT(session, out_dir, False)
+    bv_an.cumplot(session, out_dir, False)
+    return session</code></pre>
+</details>
+</dd>
+<dt id="bvmpc.bv_control.run_mpc_file"><code class="name flex">
+<span>def <span class="ident">run_mpc_file</span></span>(<span>filename, out_dir)</span>
 </code></dt>
 <dd>
 <section class="desc"><p>Take in a filename and out_dir then run the main control logic.</p></section>
 <details class="source">
 <summary>Source code</summary>
-<pre><code class="python">def main(filename, out_dir):
+<pre><code class="python">def run_mpc_file(filename, out_dir):
     &#34;&#34;&#34;Take in a filename and out_dir then run the main control logic.&#34;&#34;&#34;
     make_dir_if_not_exists(out_dir)
 
     s_extractor = SessionExtractor(filename, verbose=True)
-    print(s_extractor)
 
     for s in s_extractor:  # Batch run for file
+
         time_taken = s.time_taken()
         timestamps = s.get_arrays()
 
@@ -124,7 +184,9 @@ if __name__ == &#34;__main__&#34;:
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
-<li><code><a title="bvmpc.bv_control.main" href="#bvmpc.bv_control.main">main</a></code></li>
+<li><code><a title="bvmpc.bv_control.convert_to_hdf5" href="#bvmpc.bv_control.convert_to_hdf5">convert_to_hdf5</a></code></li>
+<li><code><a title="bvmpc.bv_control.load_hdf5" href="#bvmpc.bv_control.load_hdf5">load_hdf5</a></code></li>
+<li><code><a title="bvmpc.bv_control.run_mpc_file" href="#bvmpc.bv_control.run_mpc_file">run_mpc_file</a></code></li>
 </ul>
 </li>
 </ul>

@@ -30,8 +30,9 @@ This module handles reading Session data from a MedPC file.
 Written by Sean Martin and Gao Xiang Ham
 &#34;&#34;&#34;
 
+import os
 import numpy as np
-# import h5py
+import h5py
 from datetime import datetime
 from bvmpc.bv_session_config import SessionInfo
 
@@ -87,7 +88,8 @@ class SessionExtractor:
 
             for start, end in zip(s_starts, s_ends):
                 s_data = np.array(lines[start:end])
-                self.sessions.append(Session(s_data, self.verbose))
+                self.sessions.append(
+                    Session(lines=s_data, verbose=self.verbose))
             return self.sessions
 
     def __repr__(self):
@@ -104,7 +106,7 @@ class SessionExtractor:
         str_list = []
         str_list.append(&#34;Sessions in file:\n&#34;)
         for i, s in enumerate(self.sessions):
-            str_list.append(&#34;{} -&gt; {}\n&#34;.format(i, s.get_name()))
+            str_list.append(&#34;{} -&gt; {}\n&#34;.format(i, s.get_subject_type()))
         return &#34;&#34;.join(str_list)
 
     def __len__(self):
@@ -119,7 +121,7 @@ class SessionExtractor:
 class Session:
     &#34;&#34;&#34;The base class to hold MEDPC behaviour information.&#34;&#34;&#34;
 
-    def __init__(self, lines, verbose=False):
+    def __init__(self, h5_file=None, lines=None, verbose=False):
         &#34;&#34;&#34;
         Initialise the Session with lines from a MEDPC file.
 
@@ -133,14 +135,42 @@ class Session:
             Whether to print information while loading.
 
         &#34;&#34;&#34;
-        self.lines = lines
         self.session_info = SessionInfo()
         self.metadata = {}
-        self.timestamps = {}
+        self.info_arrays = {}
         self.verbose = verbose
+        self.out_dir = None
 
-        self._extract_metadata()
-        self._extract_session_arrays()
+        a = lines is None
+        b = h5_file is None
+        if (a and b or (not a and not b)):
+            print(&#34;Error: Do not pass lines and h5_file to Session&#34;)
+            return
+
+        if lines is not None:
+            self.lines = lines
+            self._extract_metadata()
+            self._extract_session_arrays()
+
+        elif h5_file is not None:
+            self.h5_file = h5_file
+            self._extract_h5_info()
+
+        else:
+            print(&#34;Error: Unknown situation in Session init&#34;)
+            exit(-1)
+
+    def save_to_h5(self, out_dir, name=None):
+        &#34;&#34;&#34;Save information to a h5 file&#34;&#34;&#34;
+        location = name
+        if name == None:
+            location = &#34;{}_{}_{}_{}.h5&#34;.format(
+                self.get_metadata(&#34;subject&#34;),
+                self.get_metadata(&#34;start_date&#34;).replace(&#34;/&#34;, &#34;-&#34;),
+                self.get_metadata(&#34;start_time&#34;)[:-3].replace(&#34;:&#34;, &#34;-&#34;),
+                self.get_metadata(&#34;name&#34;))
+        self.h5_file = os.path.join(out_dir, location)
+        self._save_h5_info()
 
     def get_metadata(self, key=None):
         &#34;&#34;&#34;
@@ -164,31 +194,29 @@ class Session:
 
     def get_subject_type(self):
         &#34;&#34;&#34;Return the subject and session type as a string.&#34;&#34;&#34;
-        subject = self.lines[
-            self.session_info.get_metadata(&#34;subject&#34;)]
-        name = self.lines[
-            self.session_info.get_metadata(&#34;name&#34;)]
-        return &#39;{}, {}&#39;.format(subject, name)
+        subject = self.get_metadata(&#34;subject&#34;)
+        name = self.get_metadata(&#34;name&#34;)
+        return &#39;Subject: {}, Trial Type {}&#39;.format(subject, name)
 
     def get_arrays(self, key=None):
         &#34;&#34;&#34;
-        Return the timestamps in the session.
+        Return the info arrays in the session.
 
         Parameters
         ----------
         key : str - Default None
-            The name of the timestamp to get.
+            The name of the info array to get.
 
         Returns
         -------
         np.ndarray: If key is a valid key.
         [] : If key is not a valid key
-        Dict : If key is None, all the timestamps.
+        Dict : If key is None, all the info arrays.
 
         &#34;&#34;&#34;
         if key:
-            return self.timestamps.get(key, [])
-        return self.timestamps
+            return self.info_arrays.get(key, [])
+        return self.info_arrays
 
     def get_lever_ts(self, include_un=True):
         &#34;&#34;&#34;
@@ -212,10 +240,41 @@ class Session:
             levers.append(self.get_arrays(&#34;Un_L&#34;))
         return np.sort(np.concatenate(levers, axis=None))
 
+    def time_taken(self):
+        &#34;&#34;&#34;Calculate how long the Session took in mins.&#34;&#34;&#34;
+        start_time = self.get_metadata(&#34;start_time&#34;)[-8:].replace(&#39; &#39;, &#39;0&#39;)
+        end_time = self.get_metadata(&#34;end_time&#34;)[-8:].replace(&#39; &#39;, &#39;0&#39;)
+        fmt = &#39;%H:%M:%S&#39;
+        tdelta = (
+            datetime.strptime(end_time, fmt) -
+            datetime.strptime(start_time, fmt))
+        tdelta_mins = int(tdelta.total_seconds() / 60)
+        return tdelta_mins
+
+    def _save_h5_info(self):
+        &#34;&#34;&#34;Private function to save info to h5 file&#34;&#34;&#34;
+        with h5py.File(self.h5_file, &#34;w&#34;, libver=&#34;latest&#34;) as f:
+            for key, val in self.get_metadata().items():
+                print(&#34;I&#39;m in here! {} {}&#34;.format(key, val))
+                f.attrs[key] = val
+            for key, val in f.attrs.items():
+                print(key, val)
+            for key, val in self.get_arrays().items():
+                f.create_dataset(key, data=val, dtype=np.float32)
+
+    def _extract_h5_info(self):
+        &#34;&#34;&#34;Private function to pull info from h5 file&#34;&#34;&#34;
+        with h5py.File(self.h5_file, &#34;r&#34;, libver=&#34;latest&#34;) as f:
+            for key, val in f.attrs.items():
+                self.metadata[key] = val
+            for key in f.keys():
+                self.info_arrays[key] = f[key][()]
+
     def _extract_metadata(self):
         &#34;&#34;&#34;Private function to pull metadata out of lines.&#34;&#34;&#34;
         for i, name in enumerate(self.session_info.get_metadata()):
-            self.metadata[name] = self.lines[i]
+            start = self.session_info.get_metadata_start(i)
+            self.metadata[name] = self.lines[i][start:]
 
     def _extract_session_arrays(self):
         &#34;&#34;&#34;Private function to pull session arrays out of lines.&#34;&#34;&#34;
@@ -231,11 +290,11 @@ class Session:
             print(&#34;Parameters extracted:&#34;)
         for i, (start_char, end_char, parameter) in enumerate(data_info):
             c_data = self._extract_array(self.lines, start_char, end_char)
-            self.timestamps[parameter] = c_data
+            self.info_arrays[parameter] = c_data
             if self.verbose:
                 print(i, &#39;-&gt; {}: {}&#39;.format(parameter, len(c_data)))
 
-        return self.timestamps
+        return self.info_arrays
 
     @staticmethod
     def _extract_array(lines, start_char, end_char):
@@ -262,17 +321,6 @@ class Session:
             st = 5 * i
             arr[st:st + len(numbers)] = numbers
         return arr
-
-    def time_taken(self):
-        &#34;&#34;&#34;Calculate how long the Session took in mins.&#34;&#34;&#34;
-        start_time = self.get_metadata(&#34;start_time&#34;)[-8:].replace(&#39; &#39;, &#39;0&#39;)
-        end_time = self.get_metadata(&#34;end_time&#34;)[-8:].replace(&#39; &#39;, &#39;0&#39;)
-        fmt = &#39;%H:%M:%S&#39;
-        tdelta = (
-            datetime.strptime(end_time, fmt) -
-            datetime.strptime(start_time, fmt))
-        tdelta_mins = int(tdelta.total_seconds() / 60)
-        return tdelta_mins
 
     def __repr__(self):
         &#34;&#34;&#34;
@@ -295,7 +343,7 @@ class Session:
 <dl>
 <dt id="bvmpc.bv_parse_sessions.Session"><code class="flex name class">
 <span>class <span class="ident">Session</span></span>
-<span>(</span><span>lines, verbose=False)</span>
+<span>(</span><span>h5_file=None, lines=None, verbose=False)</span>
 </code></dt>
 <dd>
 <section class="desc"><p>The base class to hold MEDPC behaviour information.</p>
@@ -313,7 +361,7 @@ class Session:
 <pre><code class="python">class Session:
     &#34;&#34;&#34;The base class to hold MEDPC behaviour information.&#34;&#34;&#34;
 
-    def __init__(self, lines, verbose=False):
+    def __init__(self, h5_file=None, lines=None, verbose=False):
         &#34;&#34;&#34;
         Initialise the Session with lines from a MEDPC file.
 
@@ -327,14 +375,42 @@ class Session:
             Whether to print information while loading.
 
         &#34;&#34;&#34;
-        self.lines = lines
         self.session_info = SessionInfo()
         self.metadata = {}
-        self.timestamps = {}
+        self.info_arrays = {}
         self.verbose = verbose
+        self.out_dir = None
 
-        self._extract_metadata()
-        self._extract_session_arrays()
+        a = lines is None
+        b = h5_file is None
+        if (a and b or (not a and not b)):
+            print(&#34;Error: Do not pass lines and h5_file to Session&#34;)
+            return
+
+        if lines is not None:
+            self.lines = lines
+            self._extract_metadata()
+            self._extract_session_arrays()
+
+        elif h5_file is not None:
+            self.h5_file = h5_file
+            self._extract_h5_info()
+
+        else:
+            print(&#34;Error: Unknown situation in Session init&#34;)
+            exit(-1)
+
+    def save_to_h5(self, out_dir, name=None):
+        &#34;&#34;&#34;Save information to a h5 file&#34;&#34;&#34;
+        location = name
+        if name == None:
+            location = &#34;{}_{}_{}_{}.h5&#34;.format(
+                self.get_metadata(&#34;subject&#34;),
+                self.get_metadata(&#34;start_date&#34;).replace(&#34;/&#34;, &#34;-&#34;),
+                self.get_metadata(&#34;start_time&#34;)[:-3].replace(&#34;:&#34;, &#34;-&#34;),
+                self.get_metadata(&#34;name&#34;))
+        self.h5_file = os.path.join(out_dir, location)
+        self._save_h5_info()
 
     def get_metadata(self, key=None):
         &#34;&#34;&#34;
@@ -358,31 +434,29 @@ class Session:
 
     def get_subject_type(self):
         &#34;&#34;&#34;Return the subject and session type as a string.&#34;&#34;&#34;
-        subject = self.lines[
-            self.session_info.get_metadata(&#34;subject&#34;)]
-        name = self.lines[
-            self.session_info.get_metadata(&#34;name&#34;)]
-        return &#39;{}, {}&#39;.format(subject, name)
+        subject = self.get_metadata(&#34;subject&#34;)
+        name = self.get_metadata(&#34;name&#34;)
+        return &#39;Subject: {}, Trial Type {}&#39;.format(subject, name)
 
     def get_arrays(self, key=None):
         &#34;&#34;&#34;
-        Return the timestamps in the session.
+        Return the info arrays in the session.
 
         Parameters
         ----------
         key : str - Default None
-            The name of the timestamp to get.
+            The name of the info array to get.
 
         Returns
         -------
         np.ndarray: If key is a valid key.
         [] : If key is not a valid key
-        Dict : If key is None, all the timestamps.
+        Dict : If key is None, all the info arrays.
 
         &#34;&#34;&#34;
         if key:
-            return self.timestamps.get(key, [])
-        return self.timestamps
+            return self.info_arrays.get(key, [])
+        return self.info_arrays
 
     def get_lever_ts(self, include_un=True):
         &#34;&#34;&#34;
@@ -406,10 +480,41 @@ class Session:
             levers.append(self.get_arrays(&#34;Un_L&#34;))
         return np.sort(np.concatenate(levers, axis=None))
 
+    def time_taken(self):
+        &#34;&#34;&#34;Calculate how long the Session took in mins.&#34;&#34;&#34;
+        start_time = self.get_metadata(&#34;start_time&#34;)[-8:].replace(&#39; &#39;, &#39;0&#39;)
+        end_time = self.get_metadata(&#34;end_time&#34;)[-8:].replace(&#39; &#39;, &#39;0&#39;)
+        fmt = &#39;%H:%M:%S&#39;
+        tdelta = (
+            datetime.strptime(end_time, fmt) -
+            datetime.strptime(start_time, fmt))
+        tdelta_mins = int(tdelta.total_seconds() / 60)
+        return tdelta_mins
+
+    def _save_h5_info(self):
+        &#34;&#34;&#34;Private function to save info to h5 file&#34;&#34;&#34;
+        with h5py.File(self.h5_file, &#34;w&#34;, libver=&#34;latest&#34;) as f:
+            for key, val in self.get_metadata().items():
+                print(&#34;I&#39;m in here! {} {}&#34;.format(key, val))
+                f.attrs[key] = val
+            for key, val in f.attrs.items():
+                print(key, val)
+            for key, val in self.get_arrays().items():
+                f.create_dataset(key, data=val, dtype=np.float32)
+
+    def _extract_h5_info(self):
+        &#34;&#34;&#34;Private function to pull info from h5 file&#34;&#34;&#34;
+        with h5py.File(self.h5_file, &#34;r&#34;, libver=&#34;latest&#34;) as f:
+            for key, val in f.attrs.items():
+                self.metadata[key] = val
+            for key in f.keys():
+                self.info_arrays[key] = f[key][()]
+
     def _extract_metadata(self):
         &#34;&#34;&#34;Private function to pull metadata out of lines.&#34;&#34;&#34;
         for i, name in enumerate(self.session_info.get_metadata()):
-            self.metadata[name] = self.lines[i]
+            start = self.session_info.get_metadata_start(i)
+            self.metadata[name] = self.lines[i][start:]
 
     def _extract_session_arrays(self):
         &#34;&#34;&#34;Private function to pull session arrays out of lines.&#34;&#34;&#34;
@@ -425,11 +530,11 @@ class Session:
             print(&#34;Parameters extracted:&#34;)
         for i, (start_char, end_char, parameter) in enumerate(data_info):
             c_data = self._extract_array(self.lines, start_char, end_char)
-            self.timestamps[parameter] = c_data
+            self.info_arrays[parameter] = c_data
             if self.verbose:
                 print(i, &#39;-&gt; {}: {}&#39;.format(parameter, len(c_data)))
 
-        return self.timestamps
+        return self.info_arrays
 
     @staticmethod
     def _extract_array(lines, start_char, end_char):
@@ -457,17 +562,6 @@ class Session:
             arr[st:st + len(numbers)] = numbers
         return arr
 
-    def time_taken(self):
-        &#34;&#34;&#34;Calculate how long the Session took in mins.&#34;&#34;&#34;
-        start_time = self.get_metadata(&#34;start_time&#34;)[-8:].replace(&#39; &#39;, &#39;0&#39;)
-        end_time = self.get_metadata(&#34;end_time&#34;)[-8:].replace(&#39; &#39;, &#39;0&#39;)
-        fmt = &#39;%H:%M:%S&#39;
-        tdelta = (
-            datetime.strptime(end_time, fmt) -
-            datetime.strptime(start_time, fmt))
-        tdelta_mins = int(tdelta.total_seconds() / 60)
-        return tdelta_mins
-
     def __repr__(self):
         &#34;&#34;&#34;
         Return string representation of the Session.
@@ -483,37 +577,37 @@ class Session:
 <span>def <span class="ident">get_arrays</span></span>(<span>self, key=None)</span>
 </code></dt>
 <dd>
-<section class="desc"><p>Return the timestamps in the session.</p>
+<section class="desc"><p>Return the info arrays in the session.</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>key</code></strong> :&ensp;<code>str</code> - <code>Default</code> <code>None</code></dt>
-<dd>The name of the timestamp to get.</dd>
+<dd>The name of the info array to get.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>np.ndarray: If key is a valid key.
 [] : If key is not a valid key
-Dict : If key is None, all the timestamps.</p></section>
+Dict : If key is None, all the info arrays.</p></section>
 <details class="source">
 <summary>Source code</summary>
 <pre><code class="python">def get_arrays(self, key=None):
     &#34;&#34;&#34;
-    Return the timestamps in the session.
+    Return the info arrays in the session.
 
     Parameters
     ----------
     key : str - Default None
-        The name of the timestamp to get.
+        The name of the info array to get.
 
     Returns
     -------
     np.ndarray: If key is a valid key.
     [] : If key is not a valid key
-    Dict : If key is None, all the timestamps.
+    Dict : If key is None, all the info arrays.
 
     &#34;&#34;&#34;
     if key:
-        return self.timestamps.get(key, [])
-    return self.timestamps</code></pre>
+        return self.info_arrays.get(key, [])
+    return self.info_arrays</code></pre>
 </details>
 </dd>
 <dt id="bvmpc.bv_parse_sessions.Session.get_lever_ts"><code class="name flex">
@@ -599,11 +693,29 @@ Dict : If key is None, all the metadata.</p></section>
 <summary>Source code</summary>
 <pre><code class="python">def get_subject_type(self):
     &#34;&#34;&#34;Return the subject and session type as a string.&#34;&#34;&#34;
-    subject = self.lines[
-        self.session_info.get_metadata(&#34;subject&#34;)]
-    name = self.lines[
-        self.session_info.get_metadata(&#34;name&#34;)]
-    return &#39;{}, {}&#39;.format(subject, name)</code></pre>
+    subject = self.get_metadata(&#34;subject&#34;)
+    name = self.get_metadata(&#34;name&#34;)
+    return &#39;Subject: {}, Trial Type {}&#39;.format(subject, name)</code></pre>
+</details>
+</dd>
+<dt id="bvmpc.bv_parse_sessions.Session.save_to_h5"><code class="name flex">
+<span>def <span class="ident">save_to_h5</span></span>(<span>self, out_dir, name=None)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Save information to a h5 file</p></section>
+<details class="source">
+<summary>Source code</summary>
+<pre><code class="python">def save_to_h5(self, out_dir, name=None):
+    &#34;&#34;&#34;Save information to a h5 file&#34;&#34;&#34;
+    location = name
+    if name == None:
+        location = &#34;{}_{}_{}_{}.h5&#34;.format(
+            self.get_metadata(&#34;subject&#34;),
+            self.get_metadata(&#34;start_date&#34;).replace(&#34;/&#34;, &#34;-&#34;),
+            self.get_metadata(&#34;start_time&#34;)[:-3].replace(&#34;:&#34;, &#34;-&#34;),
+            self.get_metadata(&#34;name&#34;))
+    self.h5_file = os.path.join(out_dir, location)
+    self._save_h5_info()</code></pre>
 </details>
 </dd>
 <dt id="bvmpc.bv_parse_sessions.Session.time_taken"><code class="name flex">
@@ -695,7 +807,8 @@ Dict : If key is None, all the metadata.</p></section>
 
             for start, end in zip(s_starts, s_ends):
                 s_data = np.array(lines[start:end])
-                self.sessions.append(Session(s_data, self.verbose))
+                self.sessions.append(
+                    Session(lines=s_data, verbose=self.verbose))
             return self.sessions
 
     def __repr__(self):
@@ -712,7 +825,7 @@ Dict : If key is None, all the metadata.</p></section>
         str_list = []
         str_list.append(&#34;Sessions in file:\n&#34;)
         for i, s in enumerate(self.sessions):
-            str_list.append(&#34;{} -&gt; {}\n&#34;.format(i, s.get_name()))
+            str_list.append(&#34;{} -&gt; {}\n&#34;.format(i, s.get_subject_type()))
         return &#34;&#34;.join(str_list)
 
     def __len__(self):
@@ -756,7 +869,8 @@ Dict : If key is None, all the metadata.</p></section>
 
         for start, end in zip(s_starts, s_ends):
             s_data = np.array(lines[start:end])
-            self.sessions.append(Session(s_data, self.verbose))
+            self.sessions.append(
+                Session(lines=s_data, verbose=self.verbose))
         return self.sessions</code></pre>
 </details>
 </dd>
@@ -804,11 +918,12 @@ Dict : If key is None, all the metadata.</p></section>
 <ul>
 <li>
 <h4><code><a title="bvmpc.bv_parse_sessions.Session" href="#bvmpc.bv_parse_sessions.Session">Session</a></code></h4>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="bvmpc.bv_parse_sessions.Session.get_arrays" href="#bvmpc.bv_parse_sessions.Session.get_arrays">get_arrays</a></code></li>
 <li><code><a title="bvmpc.bv_parse_sessions.Session.get_lever_ts" href="#bvmpc.bv_parse_sessions.Session.get_lever_ts">get_lever_ts</a></code></li>
 <li><code><a title="bvmpc.bv_parse_sessions.Session.get_metadata" href="#bvmpc.bv_parse_sessions.Session.get_metadata">get_metadata</a></code></li>
 <li><code><a title="bvmpc.bv_parse_sessions.Session.get_subject_type" href="#bvmpc.bv_parse_sessions.Session.get_subject_type">get_subject_type</a></code></li>
+<li><code><a title="bvmpc.bv_parse_sessions.Session.save_to_h5" href="#bvmpc.bv_parse_sessions.Session.save_to_h5">save_to_h5</a></code></li>
 <li><code><a title="bvmpc.bv_parse_sessions.Session.time_taken" href="#bvmpc.bv_parse_sessions.Session.time_taken">time_taken</a></code></li>
 </ul>
 </li>

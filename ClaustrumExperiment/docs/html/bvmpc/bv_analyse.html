@@ -39,7 +39,7 @@ import os.path
 
 def cumplot(session, out_dir, smooth=False, ax=None):
     &#34;&#34;&#34;Perform a cumulative plot for a Session.&#34;&#34;&#34;
-    date = session.get_metadata(&#39;start_date&#39;)[-8:].replace(&#39;/&#39;, &#39;_&#39;)
+    date = session.get_metadata(&#39;start_date&#39;).replace(&#39;/&#39;, &#39;_&#39;)
     timestamps = session.get_arrays()
     lever_ts = session.get_lever_ts()
     session_type = session.get_metadata(&#39;name&#39;)
@@ -49,19 +49,19 @@ def cumplot(session, out_dir, smooth=False, ax=None):
     reward_times = timestamps[&#34;Nosepoke&#34;]
     fig, ax = plt.subplots()
     ax.set_title(&#39;Cumulative Lever Presses\n&#39;, fontsize=15)
-    if session_type == &#39;MSN: 5a_FixedRatio_p&#39;:
+    if session_type == &#39;5a_FixedRatio_p&#39;:
         ratio = int(timestamps[&#34;Experiment Variables&#34;][3])
         plt.suptitle(&#39;\n(Subject {}, {} {}, {})&#39;.format(
-            subject[9:], session_type[5:-2], ratio, date),
+            subject, session_type[:-2], ratio, date),
             fontsize=9, y=.98, x=.51)
-    elif session_type == &#39;MSN: 5b_FixedInterval_p&#39;:
+    elif session_type == &#39;5b_FixedInterval_p&#39;:
         interval = int(timestamps[&#34;Experiment Variables&#34;][3] / 100)
         plt.suptitle(&#39;\n(Subject {}, {} {}s, {})&#39;.format(
-            subject[9:], session_type[5:-2], interval, date),
+            subject, session_type[:-2], interval, date),
             fontsize=9, y=.98, x=.51)
     else:
         plt.suptitle(&#39;\n(Subject {}, {}, {})&#39;.format(
-            subject[9:], session_type[5:-2], date),
+            subject, session_type[:-2], date),
             fontsize=9, y=.98, x=.51)
     ax.set_xlabel(&#39;Time (s)&#39;)
     ax.set_ylabel(&#39;Cumulative Lever Presses&#39;)
@@ -69,19 +69,24 @@ def cumplot(session, out_dir, smooth=False, ax=None):
     if smooth:
         values, base = np.histogram(lever_ts, bins=len(lever_ts) * 4)
         cumulative = np.cumsum(values)
-        plot_arr_x = np.append(base[:-1], base[-1] + 50)
-        plot_arr_y = np.append(cumulative, cumulative[-1])
+        plot_arr_x = base[:-1]
+        plot_arr_y = cumulative
+        if reward_times[-1] &gt; base[-1]:
+            plot_arr_x = np.append(plot_arr_x, reward_times[-1])
+            plot_arr_y = np.append(plot_arr_y, cumulative[-1])
+
         ax.plot(plot_arr_x, plot_arr_y, c=&#39;blue&#39;)
         bins = base[:-1]
 
     else:
         lever_times = np.insert(lever_ts, 0, 0, axis=0)
         ax.step(lever_times, np.arange(
-            lever_times.size), c=&#39;blue&#39;, where=&#34;post&#34;)
-        ax.plot(
-            [lever_times[-1], lever_times[-1] + 40],
-            [lever_times.size - 1, lever_times.size - 1],
-            c=&#39;blue&#39;, label=&#39;Lever Response&#39;)
+            lever_times.size), c=&#39;blue&#39;, where=&#34;post&#34;, label=&#39;Lever Response&#39;)
+        if reward_times[-1] &gt; lever_times[-1]:
+            ax.plot(
+                [lever_times[-1], reward_times[-1] + 2],
+                [lever_times.size - 1, lever_times.size - 1],
+                c=&#39;blue&#39;)
         bins = lever_times
 
     reward_y = np.digitize(reward_times, bins) - 1
@@ -89,8 +94,8 @@ def cumplot(session, out_dir, smooth=False, ax=None):
     if smooth:
         reward_y = cumulative[reward_y]
 
-    out_name = (subject[9:].zfill(3) + &#34;_CumulativeHist_&#34; +
-                session_type[5:-2] + &#34;_&#34; + date + &#34;.png&#34;)
+    out_name = (subject.zfill(3) + &#34;_CumulativeHist_&#34; +
+                session_type[:-2] + &#34;_&#34; + date + &#34;.png&#34;)
     out_name = os.path.join(out_dir, out_name)
     print(&#34;Saved figure to {}&#34;.format(out_name))
     plt.scatter(reward_times, reward_y, marker=&#34;x&#34;, c=&#34;r&#34;,
@@ -107,7 +112,7 @@ def cumplot(session, out_dir, smooth=False, ax=None):
 
 def IRT(session, out_dir, showIRT=False, ax=None):
     &#34;&#34;&#34;Perform an inter-response time plot for a Session.&#34;&#34;&#34;
-    date = session.get_metadata(&#39;start_date&#39;)[-8:].replace(&#39;/&#39;, &#39;_&#39;)
+    date = session.get_metadata(&#39;start_date&#39;).replace(&#39;/&#39;, &#39;_&#39;)
     time_taken = session.time_taken()
     timestamps = session.get_arrays()
     good_lever_ts = session.get_lever_ts(False)
@@ -129,7 +134,7 @@ def IRT(session, out_dir, showIRT=False, ax=None):
     b = np.digitize(rewards, bins=good_lever_ts)
     _, a = np.unique(b, return_index=True)  # returns index for good rewards
     good_nosepokes = nosepokes[a]  # nosepoke ts for pressing levers
-    if session_type == &#39;MSN: 5a_FixedRatio_p&#39;:
+    if session_type == &#39;5a_FixedRatio_p&#39;:
         ratio = int(timestamps[&#34;Experiment Variables&#34;][3])
         good_lever_ts = good_lever_ts[::ratio]
     if len(good_lever_ts[1:]) &gt; len(good_nosepokes[:-1]):
@@ -144,18 +149,18 @@ def IRT(session, out_dir, showIRT=False, ax=None):
 
     # Plotting of IRT Graphs
     ax.set_title(&#39;Inter-Response Time\n&#39;, fontsize=15)
-    if session_type == &#39;MSN: 5a_FixedRatio_p&#39;:
+    if session_type == &#39;5a_FixedRatio_p&#39;:
         fig.suptitle(&#39;\n(Subject {}, {} {}, {})&#39;.format(
-            subject[9:], session_type[5:-2], ratio, date),
+            subject, session_type[:-2], ratio, date),
             fontsize=9, y=.98, x=.51)
-    elif session_type == &#39;MSN: 5b_FixedInterval_p&#39;:
+    elif session_type == &#39;5b_FixedInterval_p&#39;:
         interval = int(timestamps[&#34;Experiment Variables&#34;][3] / 100)
         fig.suptitle(&#39;\n(Subject {}, {} {}s, {})&#39;.format(
-            subject[9:], session_type[5:-2], interval, date),
+            subject, session_type[:-2], interval, date),
             fontsize=9, y=.98, x=.51)
     else:
         fig.suptitle(&#39;\n(Subject {}, {}, {})&#39;.format(
-            subject[9:], session_type[5:-2], date),
+            subject, session_type[:-2], date),
             fontsize=9, y=.98, x=.51)
     ax.set_xlabel(&#39;IRT (s)&#39;)
     ax.set_ylabel(&#39;Counts&#39;)
@@ -167,14 +172,13 @@ def IRT(session, out_dir, showIRT=False, ax=None):
     ax.text(0.55, 0.8, &#39;Session Duration: {} mins\nMost Freq. IRT Bin: {} s&#39;
             .format(time_taken, maxval), transform=ax.transAxes)
 
-    out_name = (subject[9:].zfill(3) + &#34;_IRT_Hist_&#34; +
-                session_type[5:-2] + &#34;_&#34; + date + &#34;.png&#34;)
+    out_name = (subject.zfill(3) + &#34;_IRT_Hist_&#34; +
+                session_type[:-2] + &#34;_&#34; + date + &#34;.png&#34;)
     print(&#34;Saved figure to {}&#34;.format(
         os.path.join(out_dir, out_name)))
     fig.savefig(os.path.join(out_dir, out_name), dpi=400)
     if showIRT:
         show_IRT_details(IRT, maxidx, hist_bins)
-#    plt.show()
     plt.close()
 
 
@@ -206,7 +210,7 @@ def show_IRT_details(IRT, maxidx, hist_bins):
 <summary>Source code</summary>
 <pre><code class="python">def IRT(session, out_dir, showIRT=False, ax=None):
     &#34;&#34;&#34;Perform an inter-response time plot for a Session.&#34;&#34;&#34;
-    date = session.get_metadata(&#39;start_date&#39;)[-8:].replace(&#39;/&#39;, &#39;_&#39;)
+    date = session.get_metadata(&#39;start_date&#39;).replace(&#39;/&#39;, &#39;_&#39;)
     time_taken = session.time_taken()
     timestamps = session.get_arrays()
     good_lever_ts = session.get_lever_ts(False)
@@ -228,7 +232,7 @@ def show_IRT_details(IRT, maxidx, hist_bins):
     b = np.digitize(rewards, bins=good_lever_ts)
     _, a = np.unique(b, return_index=True)  # returns index for good rewards
     good_nosepokes = nosepokes[a]  # nosepoke ts for pressing levers
-    if session_type == &#39;MSN: 5a_FixedRatio_p&#39;:
+    if session_type == &#39;5a_FixedRatio_p&#39;:
         ratio = int(timestamps[&#34;Experiment Variables&#34;][3])
         good_lever_ts = good_lever_ts[::ratio]
     if len(good_lever_ts[1:]) &gt; len(good_nosepokes[:-1]):
@@ -243,18 +247,18 @@ def show_IRT_details(IRT, maxidx, hist_bins):
 
     # Plotting of IRT Graphs
     ax.set_title(&#39;Inter-Response Time\n&#39;, fontsize=15)
-    if session_type == &#39;MSN: 5a_FixedRatio_p&#39;:
+    if session_type == &#39;5a_FixedRatio_p&#39;:
         fig.suptitle(&#39;\n(Subject {}, {} {}, {})&#39;.format(
-            subject[9:], session_type[5:-2], ratio, date),
+            subject, session_type[:-2], ratio, date),
             fontsize=9, y=.98, x=.51)
-    elif session_type == &#39;MSN: 5b_FixedInterval_p&#39;:
+    elif session_type == &#39;5b_FixedInterval_p&#39;:
         interval = int(timestamps[&#34;Experiment Variables&#34;][3] / 100)
         fig.suptitle(&#39;\n(Subject {}, {} {}s, {})&#39;.format(
-            subject[9:], session_type[5:-2], interval, date),
+            subject, session_type[:-2], interval, date),
             fontsize=9, y=.98, x=.51)
     else:
         fig.suptitle(&#39;\n(Subject {}, {}, {})&#39;.format(
-            subject[9:], session_type[5:-2], date),
+            subject, session_type[:-2], date),
             fontsize=9, y=.98, x=.51)
     ax.set_xlabel(&#39;IRT (s)&#39;)
     ax.set_ylabel(&#39;Counts&#39;)
@@ -266,14 +270,13 @@ def show_IRT_details(IRT, maxidx, hist_bins):
     ax.text(0.55, 0.8, &#39;Session Duration: {} mins\nMost Freq. IRT Bin: {} s&#39;
             .format(time_taken, maxval), transform=ax.transAxes)
 
-    out_name = (subject[9:].zfill(3) + &#34;_IRT_Hist_&#34; +
-                session_type[5:-2] + &#34;_&#34; + date + &#34;.png&#34;)
+    out_name = (subject.zfill(3) + &#34;_IRT_Hist_&#34; +
+                session_type[:-2] + &#34;_&#34; + date + &#34;.png&#34;)
     print(&#34;Saved figure to {}&#34;.format(
         os.path.join(out_dir, out_name)))
     fig.savefig(os.path.join(out_dir, out_name), dpi=400)
     if showIRT:
         show_IRT_details(IRT, maxidx, hist_bins)
-#    plt.show()
     plt.close()</code></pre>
 </details>
 </dd>
@@ -286,7 +289,7 @@ def show_IRT_details(IRT, maxidx, hist_bins):
 <summary>Source code</summary>
 <pre><code class="python">def cumplot(session, out_dir, smooth=False, ax=None):
     &#34;&#34;&#34;Perform a cumulative plot for a Session.&#34;&#34;&#34;
-    date = session.get_metadata(&#39;start_date&#39;)[-8:].replace(&#39;/&#39;, &#39;_&#39;)
+    date = session.get_metadata(&#39;start_date&#39;).replace(&#39;/&#39;, &#39;_&#39;)
     timestamps = session.get_arrays()
     lever_ts = session.get_lever_ts()
     session_type = session.get_metadata(&#39;name&#39;)
@@ -296,19 +299,19 @@ def show_IRT_details(IRT, maxidx, hist_bins):
     reward_times = timestamps[&#34;Nosepoke&#34;]
     fig, ax = plt.subplots()
     ax.set_title(&#39;Cumulative Lever Presses\n&#39;, fontsize=15)
-    if session_type == &#39;MSN: 5a_FixedRatio_p&#39;:
+    if session_type == &#39;5a_FixedRatio_p&#39;:
         ratio = int(timestamps[&#34;Experiment Variables&#34;][3])
         plt.suptitle(&#39;\n(Subject {}, {} {}, {})&#39;.format(
-            subject[9:], session_type[5:-2], ratio, date),
+            subject, session_type[:-2], ratio, date),
             fontsize=9, y=.98, x=.51)
-    elif session_type == &#39;MSN: 5b_FixedInterval_p&#39;:
+    elif session_type == &#39;5b_FixedInterval_p&#39;:
         interval = int(timestamps[&#34;Experiment Variables&#34;][3] / 100)
         plt.suptitle(&#39;\n(Subject {}, {} {}s, {})&#39;.format(
-            subject[9:], session_type[5:-2], interval, date),
+            subject, session_type[:-2], interval, date),
             fontsize=9, y=.98, x=.51)
     else:
         plt.suptitle(&#39;\n(Subject {}, {}, {})&#39;.format(
-            subject[9:], session_type[5:-2], date),
+            subject, session_type[:-2], date),
             fontsize=9, y=.98, x=.51)
     ax.set_xlabel(&#39;Time (s)&#39;)
     ax.set_ylabel(&#39;Cumulative Lever Presses&#39;)
@@ -316,19 +319,24 @@ def show_IRT_details(IRT, maxidx, hist_bins):
     if smooth:
         values, base = np.histogram(lever_ts, bins=len(lever_ts) * 4)
         cumulative = np.cumsum(values)
-        plot_arr_x = np.append(base[:-1], base[-1] + 50)
-        plot_arr_y = np.append(cumulative, cumulative[-1])
+        plot_arr_x = base[:-1]
+        plot_arr_y = cumulative
+        if reward_times[-1] &gt; base[-1]:
+            plot_arr_x = np.append(plot_arr_x, reward_times[-1])
+            plot_arr_y = np.append(plot_arr_y, cumulative[-1])
+
         ax.plot(plot_arr_x, plot_arr_y, c=&#39;blue&#39;)
         bins = base[:-1]
 
     else:
         lever_times = np.insert(lever_ts, 0, 0, axis=0)
         ax.step(lever_times, np.arange(
-            lever_times.size), c=&#39;blue&#39;, where=&#34;post&#34;)
-        ax.plot(
-            [lever_times[-1], lever_times[-1] + 40],
-            [lever_times.size - 1, lever_times.size - 1],
-            c=&#39;blue&#39;, label=&#39;Lever Response&#39;)
+            lever_times.size), c=&#39;blue&#39;, where=&#34;post&#34;, label=&#39;Lever Response&#39;)
+        if reward_times[-1] &gt; lever_times[-1]:
+            ax.plot(
+                [lever_times[-1], reward_times[-1] + 2],
+                [lever_times.size - 1, lever_times.size - 1],
+                c=&#39;blue&#39;)
         bins = lever_times
 
     reward_y = np.digitize(reward_times, bins) - 1
@@ -336,8 +344,8 @@ def show_IRT_details(IRT, maxidx, hist_bins):
     if smooth:
         reward_y = cumulative[reward_y]
 
-    out_name = (subject[9:].zfill(3) + &#34;_CumulativeHist_&#34; +
-                session_type[5:-2] + &#34;_&#34; + date + &#34;.png&#34;)
+    out_name = (subject.zfill(3) + &#34;_CumulativeHist_&#34; +
+                session_type[:-2] + &#34;_&#34; + date + &#34;.png&#34;)
     out_name = os.path.join(out_dir, out_name)
     print(&#34;Saved figure to {}&#34;.format(out_name))
     plt.scatter(reward_times, reward_y, marker=&#34;x&#34;, c=&#34;r&#34;,
