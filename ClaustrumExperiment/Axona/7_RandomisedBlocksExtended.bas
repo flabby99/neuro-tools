@@ -192,14 +192,6 @@ function check_shuffle(in_array, array_len)
     next
 end function
 
-sub generate_led_times(byref in_array, array_len, max_val)
-    dim i 
-    for i = 0 to array_len - 1
-        in_array[i] = generate_random_float(max_val)
-    next
-    bubble_sort(in_array, array_len)
-end sub
-
 sub bubble_sort(byref in_array, array_len)
     dim i
     dim j
@@ -216,6 +208,14 @@ sub bubble_sort(byref in_array, array_len)
             end if
         next
     next
+end sub
+
+sub generate_led_times(byref in_array, array_len, max_val)
+    dim i 
+    for i = 0 to array_len - 1
+        in_array[i] = generate_random_float(max_val)
+    next
+    bubble_sort(in_array, array_len)
 end sub
 
 '''Experiment Control Routines'''
@@ -316,6 +316,11 @@ sub full_init_before_record()
         print trial_sides[i]
         trial_rewards[i] = 0
     next
+    print #1, "Random LED times start"
+    for i = 0 to num_led_times - 1
+        print #1, led_times[i]
+    next
+    print #1, "Random LED times end"
 end sub
 
 
