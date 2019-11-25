@@ -10,16 +10,10 @@ def create_hdf_storage(hdf5_file, info, size, channels):
     channel_data.attrs["total_samples"] = 3 * size // info["chunksize"]
     channel_data.attrs["channel_list"] = channels
     shape = (3 * size // info["chunksize"], )
-    # shape = (len(channels), 3 * size // info["chunksize"])
-    # channel_data.create_dataset(
-    #     "voltage", shape, np.int16,
-    #     chunks=(1, 3 * size // info["chunksize"]),
-    #     compression="lzf")
     for channel in channels:
         channel_data.create_dataset(
             str(channel), shape, np.int16,
-            compression="lzf")
-    # TODO add other things here such as timings positions etc if needed
+            compression="gzip")
 
 
 def get_file_size(location):
@@ -134,6 +128,6 @@ def log_exception(ex, more_info=""):
 
 
 if __name__ == "__main__":
-    in_location = r"C:\Users\smartin5\Recordings\Raw_1min-20190619T104708Z-001\Raw_1min\190619_LCA4_1m_raw.bin"
-    out_location = r"C:\Users\smartin5\Recordings\Raw_1min-20190619T104708Z-001\Raw_1min\hdf_vals.h5"
-    read_axona_raw(in_location, out_location)
+    in_location = r"C:\Users\smartin5\Recordings\Raw\Raw_1min\190619_LCA4_1m_raw.bin"
+    out_location = r"C:\Users\smartin5\Recordings\Raw\Raw_1min\hdf_vals_64.h5"
+    read_axona_raw(in_location, out_location, channels=[64])
