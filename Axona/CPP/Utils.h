@@ -1,9 +1,9 @@
 #include <fstream>
 #include <vector>
 
-long GetFileSize(std::string filename)
+long long GetFileSize(std::string filename)
 {
-    long length;
+    long long length;
     std::ifstream in(filename, std::ifstream::ate | std::ifstream::binary);
     length = in.tellg();
     return length;

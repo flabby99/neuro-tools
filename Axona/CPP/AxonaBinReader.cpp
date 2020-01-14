@@ -39,8 +39,8 @@ void AxonaBinReader::Init(std::string name)
 
 bool const AxonaBinReader::ToInp()
 {
-	long fsize = GetFileSize(GetBinFname());
-	long total_samples = fsize / _chunksize;
+	long long fsize = GetFileSize(GetBinFname());
+	long long total_samples = fsize / _chunksize;
 	const int buff_size = _chunksize;
 	
 	std::vector<char> buffer(buff_size, 0);
@@ -53,14 +53,14 @@ bool const AxonaBinReader::ToInp()
 
 	std::ifstream infile;
 	infile.open(_bin_fname, std::ios::binary | std::ios::in);
-	int sample_count = 0;
+  uint32_t sample_count = 0;
 
   uint16_t last_input_val = 1000;
   uint16_t last_output_val = 1000;
 	auto start = std::chrono::high_resolution_clock::now();
 	while (infile.read(buffer.data(), buffer.size())) {	
-		uint16_t input_val = (256 * buffer[8]) + buffer[9];
-		uint16_t output_val = (256 * buffer[416]) + buffer[417];
+		uint16_t input_val = (256 * (uint8_t)buffer[9]) + (uint8_t)buffer[8];
+		uint16_t output_val = (256 * (uint8_t)buffer[417]) + (uint8_t)buffer[416];
 		uint32_t timestamp = sample_count / 16;
 		if (input_val != last_input_val) {
 			char c = 'I';
@@ -74,6 +74,7 @@ bool const AxonaBinReader::ToInp()
 				((uint64_t)timestamp * 16777216) + (65536 * (uint64_t)c) + (uint64_t)output_val);
       last_output_val = output_val;
 		}
+    sample_count += 1;
 	}
 	infile.close();
 	auto finish = std::chrono::high_resolution_clock::now();
@@ -89,7 +90,7 @@ bool const AxonaBinReader::ToInp()
 	outfile << std::string("data_start");
 	for (int i = 0; i < digital_vals.size(); ++i) {
     auto byte_arr = IntToBytes(digital_vals[i]);
-		outfile.write(byte_arr.data(), 7);
+    outfile.write(byte_arr.data(), 7);
 	}
   outfile << std::string("data_end");
 	outfile.close();
@@ -101,8 +102,8 @@ bool const AxonaBinReader::ToInp()
 
 bool const AxonaBinReader::Read()
 {
-	long fsize = GetFileSize(GetBinFname());
-	long total_samples = fsize / _chunksize;
+	long long fsize = GetFileSize(GetBinFname());
+	long long total_samples = fsize / _chunksize;
 	total_samples *= _samples_per_chunk;
 	std::cout << total_samples << std::endl;
 
@@ -150,7 +151,7 @@ bool const AxonaBinReader::Read()
 
 int main() {
 	AxonaBinReader axbr{
-		"C:\\Users\\smartin5\\Recordings\\Raw\\Raw_160819\\LCA7_34_35_36.set"};
+		"C:\\Users\\smartin5\\Recordings\\Raw\\Ham20200114\\CAR-SA2_2019-12-06.set"};
 	/*axbr.Read();*/
   axbr.ToInp();
 }
