@@ -33,6 +33,61 @@ void AxonaBinReader::Init(std::string name)
 	_out_fname = base_name;
 }
 
+bool const AxonaBinReader::ToInp()
+{
+	long fsize = GetFileSize(GetBinFname());
+	long total_samples = fsize / _chunksize;
+	const int buff_size = _chunksize;
+	
+	std::vector<char> buffer(buff_size, 0);
+	std::vector<int16_t> inputs;
+	std::vector<int16_t> outputs;
+	std::vector<int32_t> timestamp;
+	std::vector<uint64_t> digital_vals;
+
+	std::ifstream infile;
+	infile.open(_bin_fname, std::ios::binary | std::ios::in);
+	int sample_count = 0;
+
+	auto start = std::chrono::high_resolution_clock::now();
+	while (infile.read(buffer.data(), buffer.size())) {	
+		uint16_t input_val = (256 * buffer[8]) + buffer[9];
+		uint16_t output_val = (256 * buffer[416]) + buffer[417];
+		if (input_val == 0) and (output_val == 0)
+			continue;
+		uint32_t timestamp = sample_count / 16;
+		if input_val != 0 {
+			char c = 'I';
+			digital_vals.push_back(
+				(timestamp * 4294967296) + (65536 * c) + (256 * input_val));
+		}
+		if output_val != 0 {
+			char c = 'O';
+			digital_vals.push_back(
+				(timestamp * 4294967296) + (65536 * c) + (256 * output_val));
+		}
+	}
+	infile.close();
+	auto finish = std::chrono::high_resolution_clock::now();
+	std::chrono::duration<double> elapsed = finish - start;
+	std::cout << "Elapsed time to read: " << elapsed.count() << " s\n";
+
+	start = std::chrono::high_resolution_clock::now();
+	std::ofstream outfile (_out_fname, std::ios::out | std::ios::binary);
+	outfile << std::string("bytes_per_sample ") << 7 << std::endl;
+	outfile << std::string("timebase ") << 1000 << std::endl;
+	outfile << std::string("num_inp_samples ") << digital_vals.size << std::endl;
+	outfile << std::string("data_start");
+	for (int i = 0; i < digital_vals.size; ++i) {
+		outfile.write((char*)digital_vals[i], 7);
+	}
+	outfile.close();
+	finish = std::chrono::high_resolution_clock::now();
+	elapsed = finish - start;
+	std::cout << "Elapsed time to write: " << elapsed.count() << " s\n";
+	return true;
+}
+
 bool const AxonaBinReader::Read()
 {
 	long fsize = GetFileSize(GetBinFname());
