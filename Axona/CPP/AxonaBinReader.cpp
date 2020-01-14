@@ -44,10 +44,11 @@ bool const AxonaBinReader::ToInp()
 	const int buff_size = _chunksize;
 	
 	std::vector<char> buffer(buff_size, 0);
-	std::vector<int16_t> inputs;
-	std::vector<int16_t> outputs;
-	std::vector<int32_t> timestamp;
 	std::vector<uint64_t> digital_vals;
+  char c = 'I';
+  digital_vals.push_back(65536 * (uint64_t)c);
+  c = 'O';
+  digital_vals.push_back(65536 * (uint64_t)c);
 
 	std::ifstream infile;
 	infile.open(_bin_fname, std::ios::binary | std::ios::in);
@@ -63,12 +64,12 @@ bool const AxonaBinReader::ToInp()
 		if (input_val != 0) {
 			char c = 'I';
 			digital_vals.push_back(
-				((uint64_t)timestamp * 4294967296) + (65536 * (uint64_t)c) + (256 * (uint64_t)input_val));
+				((uint64_t)timestamp * 16777216) + (65536 * (uint64_t)c) + (uint64_t)input_val);
 		}
 		if (output_val != 0) {
 			char c = 'O';
 			digital_vals.push_back(
-				((uint64_t)timestamp * 4294967296) + (65536 * (uint64_t)c) + (256 * (uint64_t)output_val));
+				((uint64_t)timestamp * 16777216) + (65536 * (uint64_t)c) + (uint64_t)output_val);
 		}
 	}
 	infile.close();
@@ -84,8 +85,10 @@ bool const AxonaBinReader::ToInp()
 	outfile << std::string("num_inp_samples ") << digital_vals.size() << std::endl;
 	outfile << std::string("data_start");
 	for (int i = 0; i < digital_vals.size(); ++i) {
-		outfile.write((char*)digital_vals[i], 7);
+    auto byte_arr = IntToBytes(digital_vals[i]);
+		outfile.write(byte_arr.data(), 7);
 	}
+  outfile << std::string("data_end");
 	outfile.close();
 	finish = std::chrono::high_resolution_clock::now();
 	elapsed = finish - start;
