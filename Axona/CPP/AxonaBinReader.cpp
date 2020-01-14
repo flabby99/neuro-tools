@@ -5,6 +5,7 @@
 #include <array>
 #include <charconv>
 #include <chrono>
+#include <vector>
 
 int16_t AxonaBinReader::ConvertBytes(char b1, char b2)
 {
@@ -27,10 +28,13 @@ void AxonaBinReader::Init(std::string name)
 	SetSetFname(name);
 	std::string base_name = name.substr(0, name.length() - 4);
 	std::string bin_name = base_name;
+  std::string inp_name = base_name;
 	bin_name.append(".bin");
 	SetBinFname(bin_name);
 	base_name.append("_shuff.bin");
 	_out_fname = base_name;
+  inp_name.append(".inp");
+  _out_inpname = inp_name;
 }
 
 bool const AxonaBinReader::ToInp()
@@ -53,32 +57,33 @@ bool const AxonaBinReader::ToInp()
 	while (infile.read(buffer.data(), buffer.size())) {	
 		uint16_t input_val = (256 * buffer[8]) + buffer[9];
 		uint16_t output_val = (256 * buffer[416]) + buffer[417];
-		if (input_val == 0) and (output_val == 0)
+		if ((input_val == 0) & (output_val == 0))
 			continue;
 		uint32_t timestamp = sample_count / 16;
-		if input_val != 0 {
+		if (input_val != 0) {
 			char c = 'I';
 			digital_vals.push_back(
-				(timestamp * 4294967296) + (65536 * c) + (256 * input_val));
+				((uint64_t)timestamp * 4294967296) + (65536 * (uint64_t)c) + (256 * (uint64_t)input_val));
 		}
-		if output_val != 0 {
+		if (output_val != 0) {
 			char c = 'O';
 			digital_vals.push_back(
-				(timestamp * 4294967296) + (65536 * c) + (256 * output_val));
+				((uint64_t)timestamp * 4294967296) + (65536 * (uint64_t)c) + (256 * (uint64_t)output_val));
 		}
 	}
 	infile.close();
 	auto finish = std::chrono::high_resolution_clock::now();
 	std::chrono::duration<double> elapsed = finish - start;
 	std::cout << "Elapsed time to read: " << elapsed.count() << " s\n";
+  std::cout << "Number of input output samples: " << digital_vals.size() << std::endl;
 
 	start = std::chrono::high_resolution_clock::now();
-	std::ofstream outfile (_out_fname, std::ios::out | std::ios::binary);
+	std::ofstream outfile (_out_inpname, std::ios::out | std::ios::binary);
 	outfile << std::string("bytes_per_sample ") << 7 << std::endl;
 	outfile << std::string("timebase ") << 1000 << std::endl;
-	outfile << std::string("num_inp_samples ") << digital_vals.size << std::endl;
+	outfile << std::string("num_inp_samples ") << digital_vals.size() << std::endl;
 	outfile << std::string("data_start");
-	for (int i = 0; i < digital_vals.size; ++i) {
+	for (int i = 0; i < digital_vals.size(); ++i) {
 		outfile.write((char*)digital_vals[i], 7);
 	}
 	outfile.close();
@@ -140,5 +145,6 @@ bool const AxonaBinReader::Read()
 int main() {
 	AxonaBinReader axbr{
 		"C:\\Users\\smartin5\\Recordings\\Raw\\Raw_160819\\LCA7_34_35_36.set"};
-	axbr.Read();
+	/*axbr.Read();*/
+  axbr.ToInp();
 }
