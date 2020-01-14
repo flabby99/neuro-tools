@@ -45,31 +45,34 @@ bool const AxonaBinReader::ToInp()
 	
 	std::vector<char> buffer(buff_size, 0);
 	std::vector<uint64_t> digital_vals;
-  char c = 'I';
-  digital_vals.push_back(65536 * (uint64_t)c);
-  c = 'O';
-  digital_vals.push_back(65536 * (uint64_t)c);
+  //TODO This might be unnecessary, keep an eye on this!
+  //char c = 'I';
+  //digital_vals.push_back(65536 * (uint64_t)c);
+  //c = 'O';
+  //digital_vals.push_back(65536 * (uint64_t)c);
 
 	std::ifstream infile;
 	infile.open(_bin_fname, std::ios::binary | std::ios::in);
 	int sample_count = 0;
 
+  uint16_t last_input_val = 1000;
+  uint16_t last_output_val = 1000;
 	auto start = std::chrono::high_resolution_clock::now();
 	while (infile.read(buffer.data(), buffer.size())) {	
 		uint16_t input_val = (256 * buffer[8]) + buffer[9];
 		uint16_t output_val = (256 * buffer[416]) + buffer[417];
-		if ((input_val == 0) & (output_val == 0))
-			continue;
 		uint32_t timestamp = sample_count / 16;
-		if (input_val != 0) {
+		if (input_val != last_input_val) {
 			char c = 'I';
 			digital_vals.push_back(
 				((uint64_t)timestamp * 16777216) + (65536 * (uint64_t)c) + (uint64_t)input_val);
+      last_input_val = input_val;
 		}
-		if (output_val != 0) {
+		if (output_val != last_output_val) {
 			char c = 'O';
 			digital_vals.push_back(
 				((uint64_t)timestamp * 16777216) + (65536 * (uint64_t)c) + (uint64_t)output_val);
+      last_output_val = output_val;
 		}
 	}
 	infile.close();
