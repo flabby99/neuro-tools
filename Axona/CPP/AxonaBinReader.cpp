@@ -61,7 +61,7 @@ bool const AxonaBinReader::ToInp()
 	while (infile.read(buffer.data(), buffer.size())) {	
 		uint16_t input_val = (256 * (uint8_t)buffer[9]) + (uint8_t)buffer[8];
 		uint16_t output_val = (256 * (uint8_t)buffer[417]) + (uint8_t)buffer[416];
-		uint32_t timestamp = sample_count / 16;
+		uint32_t timestamp = sample_count;
 		if (input_val != last_input_val) {
 			char c = 'I';
 			digital_vals.push_back(
@@ -85,7 +85,7 @@ bool const AxonaBinReader::ToInp()
 	start = std::chrono::high_resolution_clock::now();
 	std::ofstream outfile (_out_inpname, std::ios::out | std::ios::binary);
 	outfile << std::string("bytes_per_sample ") << 7 << std::endl;
-	outfile << std::string("timebase ") << 1000 << std::endl;
+	outfile << std::string("timebase ") << 16000 << std::endl;
 	outfile << std::string("num_inp_samples ") << digital_vals.size() << std::endl;
 	outfile << std::string("data_start");
 	for (int i = 0; i < digital_vals.size(); ++i) {
@@ -150,8 +150,7 @@ bool const AxonaBinReader::Read()
 }
 
 int main() {
-	AxonaBinReader axbr{
-		"C:\\Users\\smartin5\\Recordings\\Raw\\Ham20200114\\CAR-SA2_2019-12-06.set"};
+	AxonaBinReader axbr{"C:\\Users\\smartin5\\Recordings\\Test\\Test.set"};
 	/*axbr.Read();*/
   axbr.ToInp();
 }
