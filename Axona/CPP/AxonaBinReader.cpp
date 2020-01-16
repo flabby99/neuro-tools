@@ -97,6 +97,7 @@ bool const AxonaBinReader::ToInp()
 	finish = std::chrono::high_resolution_clock::now();
 	elapsed = finish - start;
 	std::cout << "Elapsed time to write: " << elapsed.count() << " s\n";
+  std::cout << "Result is at: " << _out_inpname << std::endl;
 	return true;
 }
 
@@ -149,8 +150,18 @@ bool const AxonaBinReader::Read()
 	return true;
 }
 
-int main() {
-	AxonaBinReader axbr{"C:\\Users\\smartin5\\Recordings\\Test\\Test.set"};
+int main(int argc, char** argv) {
+  if (argc != 2) {
+    std::cout << "Please enter one command line argument - the location of the .set file to convert" << std::endl;
+    exit(-1);
+  }
+  std::string location(argv[1]);
+  if (!file_exists(location)) {
+    std::cout << location << " is not a valid file path" << std::endl;
+    exit(-1);
+  }
+	AxonaBinReader axbr{location};
+  std::cout << "Converting " << location << std::endl;
 	/*axbr.Read();*/
   axbr.ToInp();
 }

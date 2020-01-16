@@ -1,3 +1,4 @@
+#include <sys/stat.h>
 #include <fstream>
 #include <vector>
 
@@ -20,4 +21,9 @@ std::vector<char> IntToBytes(uint64_t value)
   result.push_back(value >> 8);
   result.push_back(value);
   return result;
+}
+
+inline bool file_exists(const std::string& name) {
+  struct stat buffer;
+  return (stat(name.c_str(), &buffer) == 0);
 }
