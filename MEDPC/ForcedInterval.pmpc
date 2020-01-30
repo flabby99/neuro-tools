@@ -1,0 +1,259 @@
+\***************************************************
+\               File Description Comments
+\***************************************************
+
+\ Lever Habituation by Seán Martin on 11/07/2019
+    \ Brief Description: Fixed interval - Lever only gives a reward after waiting X seconds from last press.
+    \ Ending criteria: Ends after 30mins, or after 45 pellets.
+    \ Locked pins: Remember to turn off the fan (16) 
+
+\***************************************************
+\               Constant Definitions
+\***************************************************
+\ Experiment variable locations
+    ^MaxTimeIdx = 0
+    ^MaxPelletIdx = 1
+    ^FixedIntervalIdx = 2
+
+\ Index holder locations
+    ^FeederTimeIdx = 0
+    ^NosepokeTimeIdx = 1
+    ^LeftLeverTimeIdx = 2
+    ^WrongLeftTimeIdx = 3
+    ^WrongNosepokeTimeIdx = 4
+
+\ Counter locations
+    ^FeederCountIdx = 0
+    ^NosepokeCountIdx = 1
+    ^LeftLeverCountIdx = 2
+    ^WrongLeftCountIdx = 3
+    ^WrongNosepokeCountIdx = 4
+
+\ Inputs
+    ^LeftLever = 5
+    ^Nosepoke = 7
+
+\ Outputs
+    ^LeftLeverOut = 3
+    ^HouseLight = 7
+    ^Sound = 8
+    ^Feeder = 9
+    ^FanBox = 16
+
+\***************************************************
+\               Variable Descriptions
+\***************************************************
+
+\ Aliases
+    VAR_ALIAS Maximum Time (min) = A(0) \ Default 30 minutes
+    VAR_ALIAS Max Pellets = A(1) \ Default 45
+    VAR_ALIAS Fixed Interval (secs) = A(2) \ Default 2s
+
+\ Arrays
+    \ A = Experiment variables
+    \ B = Index holders
+    \ C = Counters
+    \ D = Data array for feeder drop times
+    \ E = Data array for nosepoke times
+    \ N = Data array for unnecessary left response times
+    \ O = Data array for unnecessary nosepoke times
+    \ R = Data array for left lever response times
+
+    DIM A = 2
+    DIM B = 4
+    DIM C = 4
+    DIM D = 320 \ Should be large enough to hold max_pellets + 1
+    DIM E = 320 \ Should be large enough to hold max_pellets + 1
+    DIM N = 100000 \ Could be anything
+    DIM O = 100000 \ Could be anything
+    DIM R = 1000 \ Should be large enough to hold (max_pellets * max_fr) + 1
+
+\ Counter descriptions
+    \ C(0) = Number of Pellets dropped
+    \ C(1) = Number of Nosepokes
+    \ C(2) = Number of left lever presses
+    \ C(3) = Number of unnecessary left lever presses
+    \ C(4) = Number of unnecessary nosepokes
+
+\ Z Pulses
+    \ Z1 = Screen update pulse
+    \ Z2 = Activate Feeder
+    \ Z32 = End the session
+
+\ Single Variables
+    \ T = Elapsed time
+
+\ List of Variables to save at end of trial
+    DISKVARS = A, B, C, D, E, N, O, R, T
+
+\***************************************************
+\               Implementation
+\***************************************************
+
+S.S.1, \ Control flow
+
+    S1, \ Establish default values and turn on fan
+        0.01":
+            SET A(^MaxTimeIdx) = 30;
+            SET A(^MaxPelletIdx) = 90;
+            SET A(^FixedIntervalIdx) = 2;
+            SET D(0) = -987.987;
+            SET E(0) = -987.987;
+            SET N(0) = -987.987;
+            SET O(0) = -987.987;
+            SET R(0) = -987.987;
+            LOCKON ^FanBox;
+            Z1
+        ---> S2
+
+    S2, \ Wait for start signal
+        #START:
+            SET A(^FixedIntervalIdx) = A(^FixedIntervalIdx) * 1";
+            ON ^HouseLight;
+            Z1
+        ---> S3
+
+    S3, \ Time the session and flag off after Max Time or condition met
+        0.01":
+            SET T = T + 0.01;
+            IF T/60 >= A(^MaxTimeIdx) [@EndSession, @ContinueSession]
+                @End: Z32 ---> S4
+                @Cont: IF C(^NosepokeCountIdx) >= A(^MaxPelletIdx) [@EndSession]
+                    @End: Z32 ---> S4
+            ENDIF
+
+    S4, \ Turn off everything bar the fan
+        0.01":
+            OFF ^LeftLeverOut;
+            OFF ^HouseLight
+        ---> S5
+
+    S5, \ Stop the session
+        3":
+        ---> STOPABORTFLUSH
+
+\***************************************************
+\                Main Program
+\***************************************************
+S.S.2, \ Experiment logic
+
+    S1, \Wait for experiment start
+        #START:
+            ON ^LeftLeverOut;
+        ---> S2
+    
+    S2, \ Wait for the first lever press
+        1 #R ^LeftLever:
+            SET R(B(^LeftLeverTimeIdx)) = T;
+            ADD B(^LeftLeverTimeIdx);
+            ADD C(^LeftLeverCountIdx);
+            SET R(B(^LeftLeverTimeIdx)) = -987.987;
+            Z1;
+        ---> S3
+
+    S3, \ In the waiting period, animal should not press lever
+         A(^FixedIntervalIdx)#T:
+        ---> S5
+
+        1 #R ^LeftLever:
+            SET N(B(^WrongLeftTimeIdx)) = T;
+            ADD B(^WrongLeftTimeIdx);
+            ADD C(^WrongLeftCountIdx);
+            SET N(B(^WrongLeftTimeIdx)) = -987.987;
+            Z1
+        ---> S4
+
+    S4, \ The lever was pressed too early
+        0.01":
+        ---> S3
+
+    S5, \ Waited enough time to recieve a pellet
+        1 #R ^LeftLever:
+            SET R(B(^LeftLeverTimeIdx)) = T;
+            ADD B(^LeftLeverTimeIdx);
+            ADD C(^LeftLeverCountIdx);
+            SET R(B(^LeftLeverTimeIdx)) = -987.987;
+            Z1;
+            Z2
+        ---> S6
+
+
+    S6, \ Pellet has been dropped, detect left presses
+        1 #R ^LeftLever:
+            SET N(B(^WrongLeftTimeIdx)) = T;
+            ADD B(^WrongLeftTimeIdx);
+            ADD C(^WrongLeftCountIdx);
+            SET N(B(^WrongLeftTimeIdx)) = -987.987;
+            Z1
+        ---> SX
+
+        1 #R ^Nosepoke:
+        ---> S3
+
+
+S.S.5, \ Detect unnecessary nosepokes and record the times
+
+    S1, \Wait for experiment start
+        #START:
+        ---> S2
+
+    S2, \ Detect unnecessary nosepokes
+        1 #R ^Nosepoke:
+            SET O(B(^WrongNosepokeTimeIdx)) = T;
+            ADD B(^WrongNosepokeTimeIdx);
+            ADD C(^WrongNosepokeCountIdx);
+            SET O(B(^WrongNosepokeTimeIdx)) = -987.987;
+            Z1
+        ---> SX
+
+        #Z2:
+        ---> S4
+
+    S3, \ Detect correct nosepoke
+        1 #R ^Nosepoke:
+            SET E(B(^NosepokeTimeIdx)) = T;
+            ADD B(^NosepokeTimeIdx);
+            ADD C(^NosepokeCountIdx);
+            SET E(B(^NosepokeTimeIdx)) = -987.987;
+            Z1
+        ---> S2
+
+    S4, \ Wait a bit then look for nosepoke
+        0.2": ---> S3
+    
+
+S.S.7, \ Drop pellets
+
+    S1, \ Drop the pellet
+        #Z2:
+            ON ^Feeder;
+            SET D(B(^FeederTimeIdx)) = T;
+            ADD B(^FeederTimeIdx);
+            ADD C(^FeederCountIdx);
+            SET D(B(^FeederTimeIdx)) = -987.987;
+            Z1
+        ---> S2
+
+    S2, \ Turn off the feeder after dropping
+        0.5": 
+            OFF ^Feeder
+        ---> S1
+
+S.S.10, \ Update the display
+
+    S1, \ Wait 9.99 seconds or for a Z-Pulse
+        9.99":
+        ---> S2
+
+        #Z1:
+        ---> S2
+
+    S2, \ Update the screen
+        .01":
+            SHOW 1, Experiment Time, T/60;
+            SHOW 2, Pellets, C(^FeederCountIdx);
+            SHOW 3, Correct Nosepokes, C(^NosepokeCountIdx);
+            SHOW 4, Correct Lefts, C(^LeftLeverCountIdx);
+            SHOW 5, Unnecessary Lefts, C(^WrongLeftCountIdx);
+            SHOW 6, Unnecessary Nosepokes, C(^WrongNosepokeCountIdx);
+        ---> S1
