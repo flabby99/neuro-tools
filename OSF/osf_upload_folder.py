@@ -79,6 +79,8 @@ def check_files(ext_ignore_list, verbose=True):
     files = get_osf_files()
     files_to_ignore = []
     for f in files:
+        if f[-3:] == "eeg":
+            continue
         su = should_use_file(f, ext_ignore_list)
         tf = is_temp_file(f)
         if (not su) or tf:
@@ -131,9 +133,6 @@ def upload_folder(folder, ignore_list, recursive=True):
                     local)
             print(s)
             f.write(s + "\n")
-            if i == 1000:
-                print("Skipping early just to test")
-                return
 
 
 def clear_osf():
@@ -156,19 +155,46 @@ def clear_osf():
         return
 
 
+def list_extensions(folder):
+    file_list = get_all_files_in_dir(folder, recursive=True)
+    return get_extensions(file_list)
+
+
+def get_extensions(l):
+    ext_list = []
+    for item in l:
+        ext = os.path.splitext(item)[1][1:]
+        if not ext in ext_list:
+            ext_list.append(ext)
+    return ext_list
+
+
+def list_osf_extensions():
+    l = get_osf_files()
+    return get_extensions(l)
+
+
 if __name__ == "__main__":
     # NOTE please change this to be your password and change .osfcli.config
-    your_osf_password = "Cant Steal this!"
+    your_osf_password = "Can't Steal this!"
     os.environ["OSF_PASSWORD"] = your_osf_password
-    location = r"C:\Users\smartin5\Recordings\Matheus"
+    # location = r"C:\Users\smartin5\Recordings\Matheus"
     ignore_list = ["inp", "eeg", "egf", "plx",
-                   "hdf5", "csv", "pdf", "png", "svg", "txt"]
-    upload_folder(location, ignore_list)
+                   "hdf5", "csv", "pdf", "png", "svg", "txt", "jpg",
+                   "mat", "bmp", "xlsx", "ps", "log"]
+    # upload_folder(location, ignore_list)
+    location = r"G:\ToUp"
+    # upload_folder(location, ignore_list)
+    # print(list_extensions(location))
+    # print(list_osf_extensions())
     # print(check_files(ignore_list, verbose=False))
     # list_files()
     # exit(1)
     # name = r"osfstorage\t3.txt"
-    # files = get_osf_files()
+    files = get_osf_files()
+    with open(os.path.join(location, "all_files.txt"), "w") as f:
+        for item in files:
+            f.write(item + "\n")
     # name = files[0]
     # remove_file(name)
     # clear_osf()
