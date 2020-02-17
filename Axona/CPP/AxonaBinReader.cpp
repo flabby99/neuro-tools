@@ -44,11 +44,6 @@ bool const AxonaBinReader::ToInp()
 
 	std::vector<char> buffer(buff_size, 0);
 	std::vector<uint64_t> digital_vals;
-	//TODO This might be unnecessary, keep an eye on this!
-	//char c = 'I';
-	//digital_vals.push_back(65536 * (uint64_t)c);
-	//c = 'O';
-	//digital_vals.push_back(65536 * (uint64_t)c);
 
 	std::ifstream infile;
 	infile.open(_bin_fname, std::ios::binary | std::ios::in);
@@ -106,74 +101,120 @@ bool const AxonaBinReader::ToInp()
 
 bool const AxonaBinReader::Read()
 {
-  // TODO add which things get output
-  long long fsize = GetFileSize(GetBinFname());
-  long long total_samples = fsize / _chunksize;
-  total_samples *= _samples_per_chunk;
-  std::cout << "Total samples " << total_samples << std::endl;
+	// TODO add which things get output
 
-  const int buff_size = _chunksize;
-  const int out_samples = 480000;
-  std::vector<char> buffer(buff_size, 0);
-  std::vector<std::vector<int16_t>> channel_data(
-    _num_channels, std::vector<int16_t>(out_samples, 0));
+	long long fsize = GetFileSize(GetBinFname());
+	long long total_samples = fsize / _chunksize;
+	total_samples *= _samples_per_chunk;
+	std::cout << "Total samples " << total_samples << std::endl;
 
-  std::ifstream infile;
-  infile.open(_bin_fname, std::ios::binary | std::ios::in);
-  int sample_count = 0;
-  /*uint64_t packet_number = 0;
-  uint64_t last_packet_number = 0;*/
+	// Set up buffers and storage vectors
+	const int buff_size = _chunksize;
+	const int out_samples = 480000;
+	std::vector<char> buffer(buff_size, 0);
+	std::vector<std::vector<int16_t>> channel_data(
+		_num_channels, std::vector<int16_t>(out_samples, 0));
+	std::vector<uint64_t> digital_vals;
 
-  auto start = std::chrono::high_resolution_clock::now();
-  std::ofstream outfile(_out_fname, std::ios::out | std::ios::binary);
-  const char header[5] = "bax1";
-  outfile.write(header, 4);
-  std::string str = std::to_string(total_samples);
-  char const* pchar = str.c_str();
-  outfile.write(pchar, 4);
-  while (infile.read(buffer.data(), buffer.size()))
-  {
-    for (int i = _header_bytes; i < _chunksize - _trailer_bytes; i = i + _sample_bytes)
-    {
-      int compare_val = (i - _header_bytes) / 2;
-      int row_sample = compare_val % _num_channels;
-      int col_sample = (sample_count % out_samples) + (compare_val / _num_channels);
-      int16_t val = ConvertBytes(buffer[i + 1], buffer[i]);
-      channel_data[_reverse_map_channels[row_sample]][col_sample] = val;
-    }
+	// Open the file
+	std::ifstream infile;
+	infile.open(_bin_fname, std::ios::binary | std::ios::in);
+	int sample_count = 0;
 
-    /*packet_number = (16777216 * (uint8_t)buffer[7]) + (65536 * (uint8_t)buffer[6]) + (256 * (uint8_t)buffer[5]) + (uint8_t)buffer[4];
-    if (last_packet_number != (packet_number - 1) && last_packet_number != 0)
-    {
-      std::cout << "Unorded packet number is " << packet_number << std::endl;
-      uint8_t fi = (uint8_t)buffer[7];
-      uint8_t se = (uint8_t)buffer[6];
-      uint8_t th = (uint8_t)buffer[5];
-      uint8_t fo = (uint8_t)buffer[4];
-      std::cout << "Bytes " << (unsigned)fi << " " << (unsigned)se << " " << (unsigned)th << " " << (unsigned)fo << std::endl;
-    }*/
-    //last_packet_number = packet_number;
-    sample_count += 3;
-    if ((sample_count % out_samples == 0) || sample_count == total_samples) {
-      // TODO change for the last write
-      int num_samples_to_write = out_samples;
-      if (sample_count == total_samples && total_samples % out_samples != 0) {
-        num_samples_to_write = total_samples % out_samples;
-      }
-      std::cout << "Writing samples " << num_samples_to_write << std::endl;
-      int sample_size_to_write = _sample_bytes * num_samples_to_write;
-      for (int i = 0; i < _num_channels; ++i)
-      {
-        outfile.write((char*)channel_data[i].data(), sample_size_to_write);
-      }
-    }
-  }
-infile.close();
-outfile.close();
-auto finish = std::chrono::high_resolution_clock::now();
-std::chrono::duration<double> elapsed = finish - start;
-std::cout << "Elapsed time to read and write: " << elapsed.count() << " s\n";
-return true;
+	// Setup the header and start the clock
+	auto start = std::chrono::high_resolution_clock::now();
+	std::ofstream outfile(_out_fname, std::ios::out | std::ios::binary);
+	const char header[5] = "bax1";
+	outfile.write(header, 4);
+	std::string str = std::to_string(total_samples);
+	char const *pchar = str.c_str();
+	outfile.write(pchar, 4);
+
+	// Setup variables
+	uint16_t last_input_val = 1000;
+	uint16_t last_output_val = 1000;
+
+	// Read and write info
+	while (infile.read(buffer.data(), buffer.size()))
+	{
+		// Inp file calculation
+		uint16_t input_val = (256 * (uint8_t)buffer[9]) + (uint8_t)buffer[8];
+		uint16_t output_val = (256 * (uint8_t)buffer[417]) + (uint8_t)buffer[416];
+		uint32_t timestamp = sample_count / 3;
+
+		// Only record when the data changes
+		if (input_val != last_input_val)
+		{
+			char c = 'I';
+			digital_vals.push_back(
+				((uint64_t)timestamp * 16777216) + (65536 * (uint64_t)c) + (uint64_t)input_val);
+			last_input_val = input_val;
+		}
+		if (output_val != last_output_val)
+		{
+			char c = 'O';
+			digital_vals.push_back(
+				((uint64_t)timestamp * 16777216) + (65536 * (uint64_t)c) + (uint64_t)output_val);
+			last_output_val = output_val;
+		}
+
+		// Channel sample calculation
+		for (int i = _header_bytes; i < _chunksize - _trailer_bytes; i = i + _sample_bytes)
+		{
+			int compare_val = (i - _header_bytes) / 2;
+			int row_sample = compare_val % _num_channels;
+			int col_sample = (sample_count % out_samples) + (compare_val / _num_channels);
+			int16_t val = ConvertBytes(buffer[i + 1], buffer[i]);
+			channel_data[_reverse_map_channels[row_sample]][col_sample] = val;
+		}
+
+		sample_count += 3;
+		if ((sample_count % out_samples == 0) || sample_count == total_samples)
+		{
+			// TODO change for the last write
+			int num_samples_to_write = out_samples;
+			if (sample_count == total_samples && total_samples % out_samples != 0)
+			{
+				num_samples_to_write = total_samples % out_samples;
+			}
+			int sample_size_to_write = _sample_bytes * num_samples_to_write;
+			for (int i = 0; i < _num_channels; ++i)
+			{
+				outfile.write((char *)channel_data[i].data(), sample_size_to_write);
+			}
+		}
+	}
+	infile.close();
+	outfile.close();
+	auto finish = std::chrono::high_resolution_clock::now();
+	std::chrono::duration<double> elapsed = finish - start;
+	std::cout << "Elapsed time to read and write channels: " << elapsed.count() << " s\n";
+	std::cout << "Channel data is at: " << _out_fname << std::endl;
+
+	// Do all the .inp writing at the end
+	elapsed = finish - start;
+	std::cout << "Elapsed time to read: " << elapsed.count() << " s\n";
+	std::cout << "Number of input output samples: " << digital_vals.size() << std::endl;
+
+	start = std::chrono::high_resolution_clock::now();
+	std::ofstream out_inp(_out_inpname, std::ios::out | std::ios::binary);
+  out_inp << std::string("bytes_per_sample ") << 7 << std::endl;
+  out_inp << std::string("timebase ") << 16000 << std::endl;
+  out_inp << std::string("num_inp_samples ") << digital_vals.size() << std::endl;
+  out_inp << std::string("data_start");
+	for (int i = 0; i < digital_vals.size(); ++i)
+	{
+		auto byte_arr = IntToBytes(digital_vals[i]);
+    out_inp.write(byte_arr.data(), 7);
+	}
+  out_inp << std::string("data_end");
+  out_inp.close();
+	finish = std::chrono::high_resolution_clock::now();
+	elapsed = finish - start;
+	std::cout << "Elapsed time to write: " << elapsed.count() << " s\n";
+	std::cout << "Result is at: " << _out_inpname << std::endl;
+
+	return true;
 }
 
 int main(int argc, char **argv)
