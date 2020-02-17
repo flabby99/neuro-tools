@@ -106,6 +106,7 @@ bool const AxonaBinReader::ToInp()
 
 bool const AxonaBinReader::Read()
 {
+  // TODO add which things get output
   long long fsize = GetFileSize(GetBinFname());
   long long total_samples = fsize / _chunksize;
   total_samples *= _samples_per_chunk;
@@ -156,7 +157,7 @@ bool const AxonaBinReader::Read()
     if ((sample_count % out_samples == 0) || sample_count == total_samples) {
       // TODO change for the last write
       int num_samples_to_write = out_samples;
-      if (sample_count == total_samples && total_samples % 3 != 0) {
+      if (sample_count == total_samples && total_samples % out_samples != 0) {
         num_samples_to_write = total_samples % out_samples;
       }
       std::cout << "Writing samples " << num_samples_to_write << std::endl;
