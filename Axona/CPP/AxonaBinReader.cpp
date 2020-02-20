@@ -101,8 +101,6 @@ bool const AxonaBinReader::ToInp()
 
 bool const AxonaBinReader::Read()
 {
-	// TODO add which things get output
-
 	long long fsize = GetFileSize(GetBinFname());
 	long long total_samples = fsize / _chunksize;
 	total_samples *= _samples_per_chunk;
@@ -110,10 +108,9 @@ bool const AxonaBinReader::Read()
 
 	// Set up buffers and storage vectors
 	const int buff_size = _chunksize;
-	const int out_samples = 480000;
 	std::vector<char> buffer(buff_size, 0);
 	std::vector<std::vector<int16_t>> channel_data(
-		_num_channels, std::vector<int16_t>(out_samples, 0));
+		_num_channels, std::vector<int16_t>(total_samples, 0));
 	std::vector<uint64_t> digital_vals;
 
 	// Open the file
@@ -127,18 +124,19 @@ bool const AxonaBinReader::Read()
 	const char header[4] = "bax";
 	outfile.write(header, 3);
 	std::string str = std::to_string(total_samples);
-  while (str.length() != 10) {
-    str.insert(0, "0");
-  }
+	while (str.length() != 10)
+	{
+		str.insert(0, "0");
+	}
 	char const *pchar = str.c_str();
 	outfile.write(pchar, 10);
-  outfile.write(header, 3);
+	outfile.write(header, 3);
 
 	// Setup variables
 	uint16_t last_input_val = 1000;
 	uint16_t last_output_val = 1000;
 
-	// Read and write info
+	// Read info
 	while (infile.read(buffer.data(), buffer.size()))
 	{
 		// Inp file calculation
@@ -167,56 +165,62 @@ bool const AxonaBinReader::Read()
 		{
 			int compare_val = (i - _header_bytes) / 2;
 			int row_sample = compare_val % _num_channels;
-			int col_sample = (sample_count % out_samples) + (compare_val / _num_channels);
+			int col_sample = sample_count + (compare_val / _num_channels);
 			int16_t val = ConvertBytes(buffer[i + 1], buffer[i]);
 			channel_data[_reverse_map_channels[row_sample]][col_sample] = val;
 		}
 
 		sample_count += 3;
-		if ((sample_count % out_samples == 0) || sample_count == total_samples)
-		{
-			// TODO change for the last write
-			int num_samples_to_write = out_samples;
-			if (sample_count == total_samples && total_samples % out_samples != 0)
-			{
-				num_samples_to_write = total_samples % out_samples;
-			}
-			int sample_size_to_write = _sample_bytes * num_samples_to_write;
-			for (int i = 0; i < _num_channels; ++i)
-			{
-				outfile.write((char *)channel_data[i].data(), sample_size_to_write);
-			}
-		}
 	}
 	infile.close();
-	outfile.close();
 	auto finish = std::chrono::high_resolution_clock::now();
 	std::chrono::duration<double> elapsed = finish - start;
-	std::cout << "Elapsed time to read and write channels: " << elapsed.count() << " s\n";
-	std::cout << "Channel data is at: " << _out_fname << std::endl;
+	std::cout << "Elapsed time to read channels: " << elapsed.count() << " s\n";
+	start = std::chrono::high_resolution_clock::now();
 
-	// Do all the .inp writing at the end
-	elapsed = finish - start;
-	std::cout << "Elapsed time to read: " << elapsed.count() << " s\n";
+	// Do all the file writing at the end
+	int sample_size_to_write = _sample_bytes * total_samples;
+
+	// Write the channel data out
+	for (int i = 0; i < _num_channels; ++i)
+	{
+		outfile.write((char *)channel_data[i].data(), sample_size_to_write);
+	}
+	outfile.close();
+
+	// Write a test file with channel 1 data
+	// std::string test_name = _bin_fname.substr(0, _bin_fname.length() - 4);
+	// test_name.append("_1.txt");
+	// std::ofstream out_test(test_name, std::ios::out);
+	// for (int i = 0; i < total_samples; ++i)
+	// {
+	// 	if (i % 16 == 0 && i != 0)
+	// 	{
+	// 		out_test << std::endl;
+	// 	}
+	// 	out_test << channel_data[0][i] << ", ";
+	// }
+	// out_test.close();
+
 	std::cout << "Number of input output samples: " << digital_vals.size() << std::endl;
 
-	start = std::chrono::high_resolution_clock::now();
 	std::ofstream out_inp(_out_inpname, std::ios::out | std::ios::binary);
-  out_inp << std::string("bytes_per_sample ") << 7 << std::endl;
-  out_inp << std::string("timebase ") << 16000 << std::endl;
-  out_inp << std::string("num_inp_samples ") << digital_vals.size() << std::endl;
-  out_inp << std::string("data_start");
+	out_inp << std::string("bytes_per_sample ") << 7 << std::endl;
+	out_inp << std::string("timebase ") << 16000 << std::endl;
+	out_inp << std::string("num_inp_samples ") << digital_vals.size() << std::endl;
+	out_inp << std::string("data_start");
 	for (int i = 0; i < digital_vals.size(); ++i)
 	{
 		auto byte_arr = IntToBytes(digital_vals[i]);
-    out_inp.write(byte_arr.data(), 7);
+		out_inp.write(byte_arr.data(), 7);
 	}
-  out_inp << std::string("data_end");
-  out_inp.close();
+	out_inp << std::string("data_end");
+	out_inp.close();
 	finish = std::chrono::high_resolution_clock::now();
 	elapsed = finish - start;
 	std::cout << "Elapsed time to write: " << elapsed.count() << " s\n";
-	std::cout << "Result is at: " << _out_inpname << std::endl;
+	std::cout << "Channel data is at: " << _out_fname << std::endl;
+	std::cout << "Input data is at: " << _out_inpname << std::endl;
 
 	return true;
 }
