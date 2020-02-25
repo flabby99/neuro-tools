@@ -22,6 +22,59 @@ AxonaBinReader::AxonaBinReader(std::string name)
 	Init(name);
 }
 
+int* AxonaBinReader::ParseReferences()
+{
+	std::ifstream set_file(_set_fname);
+	std::string line;
+	std::string ref_match = "b_in_ch_";
+	std::string base_match = "ref_";
+	int refs[64];
+	int base_refs[8];
+	while (std::getline(set_file, line))
+	{
+		std::cout << line << std::endl;
+		std::size_t found = line.rfind(ref_match, 0);
+		if (found != std::string::npos)
+		{
+			found = ref_match.length();
+			std::string end_bit = line.substr(
+				found, line.length());
+			std::size_t end_find = end_bit.rfind(" ");
+			int chan = std::stoi(end_bit.substr(0, end_find));
+			int ref = std::stoi(
+				end_bit.substr(end_find + 1, end_bit.length()));
+			refs[chan] = ref;
+		}
+		else
+		{
+			found = line.rfind(base_match, 0);
+			if (found != std::string::npos)
+			{
+				found = base_match.length();
+				std::string end_bit = line.substr(
+					found, line.length());
+				std::size_t end_find = end_bit.rfind(" ");
+				int ref_idx = std::stoi(end_bit.substr(0, end_find));
+				int ref_chan = std::stoi(
+					end_bit.substr(end_find + 1, end_bit.length()));
+				base_refs[ref_idx] = ref_chan;
+			}
+		}
+	}
+	// system("pause");
+	for (int i = 0; i < 64; ++i)
+	{
+		int ch = refs[i];
+		if (ch > 7) {
+			std::cout << "Error! Reference channel out of range -" << ch << std::endl;
+			exit(-1);
+		}
+		refs[i] = base_refs[ch];
+		std::cout << i << ", " << ch << ", " << refs[i] << std::endl;
+	}
+	return refs;
+}
+
 void AxonaBinReader::Init(std::string name)
 {
 	SetSetFname(name);
@@ -242,7 +295,8 @@ int main(int argc, char **argv)
 	std::cout << "Converting " << location << std::endl;
 	if (argc >= 3)
 	{
-		axbr.Read();
+		// axbr.Read();
+		axbr.ParseReferences();
 	}
 	else
 	{

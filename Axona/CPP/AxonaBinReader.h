@@ -1,11 +1,12 @@
 #pragma once
 #include <string>
+#include <vector>
 class AxonaBinReader
 {
 	std::string _set_fname;
 	std::string _bin_fname;
 	std::string _out_fname;
-  std::string _out_inpname;
+    std::string _out_inpname;
 
 	int _remap_channels[64] = {
 		32, 33, 34, 35, 36, 37, 38, 39,
@@ -40,8 +41,9 @@ public:
 	AxonaBinReader();
 	AxonaBinReader(std::string name);
 	void Init(std::string name);
-  bool const ToInp();
+    bool const ToInp();
 	bool const Read();
+	int* ParseReferences();
 	inline const std::string& GetSetFname() { return _set_fname; }
 	inline void SetSetFname(const std::string& name) {
 		_set_fname = name;
@@ -51,4 +53,3 @@ public:
 		_bin_fname = name;
 	}
 };
-
