@@ -17,10 +17,14 @@ for i in range(num_tetrodes):
     start = i*4 + 1
     chans = [j for j in range(start, start + num_chans_for_clust)]
     geometry = {}
+    label_start = str(i // 4)
+    label_letters = ["a", "b", "c", "d"]
+    label = [label_start + label_letters[k] for k in range(num_chans_for_clust)]
     for j, c in enumerate(chans):
         geometry[c] = [i * 2 * radius, j*y]
     channel_groups[i] = {
         'channels': chans,
         'graph': [],
-        'geometry': geometry}
+        'geometry': geometry,
+        'label': label}
 print(channel_groups)
