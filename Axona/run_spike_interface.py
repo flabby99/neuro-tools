@@ -25,13 +25,15 @@ def print_default_params():
     print(ss.get_default_params('spykingcircus'))
 
 def custom_default_params_list(sorter_name, check=False):
+    default_params = ss.get_default_params(sorter_name)
     if check:
-        return ss.get_default_params(sorter_name)
+        default_params = default_params
     elif sorter_name == "klusta":
-        return {}
-    return {}
+        default_params["detect_sign"] = 1
+    return default_params
 
-def run(location, sorter="klusta", **sorting_kwargs):
+def run(location, sorter="klusta", output_folder="result", 
+        verbose=False, **sorting_kwargs):
     print("Starting the sorting pipeline from bin data on {}".format(
         os.path.basename(location)))
     recording = se.BinDatRecordingExtractor(
@@ -51,19 +53,26 @@ def run(location, sorter="klusta", **sorting_kwargs):
 
     # Do pre-processing pipeline
     print("Running preprocessing")
-    recording_f = st.preprocessing.bandpass_filter(recording_prb, freq_min=300, freq_max=6000)
+    recording_f = st.preprocessing.bandpass_filter(
+        recording_prb, freq_min=300, freq_max=6000)
     recording_rm_noise = st.preprocessing.remove_bad_channels(
-        recording_f, bad_channel_ids=[i for i in range(3, 63, 4)])
+        recording_f, bad_channel_ids=[
+            i for i in range(3, 63, 4) 
+            if i in recording_f.get_channel_ids()]
+    )
     print('Channel ids after preprocess:',
           recording_rm_noise.get_channel_ids())
 
     # Get sorting params and run the sorting
-    params = custom_default_params_list(sorter, check=True)
+    params = custom_default_params_list(sorter, check=False)
     for k, v in sorting_kwargs.items():
         params[k] = v
     print("Running {} with parameters {}".format(
         sorter, params))
-    sorted_s = ss.run_sorter(sorter, recording_rm_noise, **params)
+    sorted_s = ss.run_sorter(
+        sorter, recording_rm_noise, 
+        grouping_property="group", output_folder=output_folder,
+        parallel=True, verbose=verbose, **params)
     
     # Some validation statistics
     snrs = st.validation.compute_snrs(sorted_s, recording_rm_noise)
@@ -92,7 +101,6 @@ def run(location, sorter="klusta", **sorting_kwargs):
     # If you need to process the data further!
     # sorting_phy_curated = se.PhySortingExtractor("phy")
 
-
     # Here you could do some comparisons with other things
     # See the ending part of 
     # https://github.com/SpikeInterface/spiketutorials/blob/master/Spike_sorting_workshop_2019/SpikeInterface_Tutorial.ipynb
@@ -106,9 +114,13 @@ def get_sort_info(sorting, recording):
     w_rs = sw.plot_rasters(sorting, trange=[0, 5])
     plt.savefig("raster5s.png", dpi=200)
 
-    print('Spike train of first unit:', spike_train)
+    print('Spike train of first unit:', 
+        np.asarray(spike_train) / 48000)
+
+    # See also spiketoolkit.postprocessing.get_unit_waveforms
+    num_samps = min(5, len(unit_ids))
     w_wf = sw.plot_unit_waveforms(
-        sorting=sorting, recording=recording, unit_ids=range(5))
+        sorting=sorting, recording=recording, unit_ids=unit_ids[:num_samps])
     plt.savefig("5waveforms.png", dpi=200)
 
 def get_info(recording, prb_fname="channel_map.prb"):
@@ -157,10 +169,10 @@ if __name__ == "__main__":
     out_folder = "results_tet12_klusta"
 
     # Remove this if you don't want a new channel_map
-    write_prb_file(tetrodes_to_use=[])
+    write_prb_file(tetrodes_to_use=[12])
 
     # grouping_property = group controls whether clustering is ran
     # per tetrode, or on the entire recording
-    run(location, "klusta", 
-        output_folder=out_folder,
-        grouping_property="group")
+    run(location, "klusta", output_folder=out_folder, verbose=True)
+
+    # TODO can actually set channel gains on a recording
