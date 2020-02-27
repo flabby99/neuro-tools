@@ -1,6 +1,6 @@
 # Setup here
 total_nb_channels = 64
-radius = 100
+radius = 1
 y = 1
 num_tetrodes = 16
 tetrodes_to_use = []
@@ -17,14 +17,21 @@ for i in range(num_tetrodes):
     start = i*4 + 1
     chans = [j for j in range(start, start + num_chans_for_clust)]
     geometry = {}
-    label_start = str(i // 4)
     label_letters = ["a", "b", "c", "d"]
-    label = [label_start + label_letters[k] for k in range(num_chans_for_clust)]
+    label = [str(i+1) + label_letters[k] for k in range(num_chans_for_clust)]
     for j, c in enumerate(chans):
         geometry[c] = [i * 2 * radius, j*y]
     channel_groups[i] = {
         'channels': chans,
-        'graph': [],
         'geometry': geometry,
         'label': label}
-print(channel_groups)
+
+with open("channel_map.prb", "w") as f:
+    f.write("channel_groups = {\n")
+    for k, v in channel_groups.items():
+        f.write("\t{}:\n".format(k))
+        f.write("\t\t{\n")
+        for k2, v2 in v.items():
+            f.write("\t\t \'{}\': {},\n".format(k2, v2))
+        f.write("\t\t},\n")
+    f.write("\n\t}")
