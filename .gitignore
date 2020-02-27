@@ -361,3 +361,7 @@ MigrationBackup/
 .ionide/
 
 MEDPC/Example/
+
+*.h5
+Axona/results*
+Axona/phy
