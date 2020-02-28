@@ -32,7 +32,8 @@ def custom_default_params_list(sorter_name, check=False):
     return default_params
 
 def run(location, sorter="klusta", output_folder="result", 
-        verbose=False, view=False, **sorting_kwargs):
+        verbose=False, view=False, 
+        remove_last_chan=False, **sorting_kwargs):
     """
     Run spike interface on a _shuff.bin file.
 
@@ -215,21 +216,19 @@ def compare_sorters(sort1, sort2):
     w_multi = sw.plot_multicomp_graph(comp_multi)
 
 if __name__ == "__main__":
-    # list_extractors()
-    # print_default_params()
-    print("Starting to run spike interface!")
     in_dir = r"G:\Ham\A10_CAR-SA2\CAR-SA2_20200109_PreBox"
     fname = "CAR-SA2_2020-01-09_PreBox_shuff.bin"
-    location = os.path.join(in_dir, fname)
     out_folder = "results_tet12_klusta"
+    tetrodes_to_use = [] # [] uses all 16
+    remove_last_chan = False # Set to true for last chan on tetrode = eeg
+
+    print("Starting to run spike interface!")
+    location = os.path.join(in_dir, fname)
     out_loc = os.path.join(in_dir, out_folder, "channel_map.prb")
     os.makedirs(os.path.dirname(out_loc), exist_ok=True)
 
-    # Remove this if you don't want a new channel_map
-    write_prb_file(tetrodes_to_use=[12], out_loc=out_loc)
-
-    # grouping_property = group controls whether clustering is ran
-    # per tetrode, or on the entire recording
-    run(location, "klusta", output_folder=out_folder, verbose=True)
+    write_prb_file(tetrodes_to_use=tetrodes_to_use, out_loc=out_loc)
+    run(location, "klusta", output_folder=out_folder, verbose=True,
+        remove_last_chan=remove_last_chan)
 
     # TODO can actually set channel gains on a recording
