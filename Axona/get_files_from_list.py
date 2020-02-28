@@ -139,17 +139,20 @@ def find_files(info, data_dir):
     good_spike_files = []
     units = []
 
-    def ok_file(f):
+    def ok_file(f, rat):
         for fname in files:
-            if f == os.path.basename(fname[:-4]):
-                return True, fname
-            return False
+            if f == os.path.basename(fname)[:-4]:
+                this_rat = fname[len(data_dir + os.sep):].split(os.sep)[0]
+                if this_rat == rat:
+                    return True, fname
+        return False, None
 
     # TODO need to match the rat name
 
     # Find set files that match    
     for i, f in enumerate(info["FileName"]):
-        test, fname = ok_file(f)
+        rat = info["RAT "][i].strip()
+        test, fname = ok_file(f, rat)
         if test:
             good_files.append(fname)
             good_basenames.append(os.path.basename(fname)[:-4])
