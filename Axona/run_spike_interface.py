@@ -109,15 +109,16 @@ def run(location, sorter="klusta", output_folder="result",
     phy_out = os.path.join(in_dir, "phy")
     st.postprocessing.export_to_phy(
         recording, sorting_curated_snr, 
-        output_folder=phy_out, grouping_property='group')
-    
+        output_folder=phy_out, grouping_property='group',
+        verbose=verbose)
+
     phy_final = os.path.join(phy_out, "params.py")
     if view:
         subprocess.run(["phy", "template-gui", phy_final])
-    else:
-        print(
-            "To view the data in phy, run: phy template-gui {}".format(
-            phy_final))
+    # else:
+    #     print(
+    #         "To view the data in phy, run: phy template-gui {}".format(
+    #         phy_final))
 
     # If you need to process the data further!
     # sorting_phy_curated = se.PhySortingExtractor("phy")
@@ -141,13 +142,44 @@ def get_sort_info(sorting, recording, out_loc):
     w_rs = sw.plot_rasters(sorting, trange=[0, t_len])
     plt.savefig(o_loc, dpi=200)
 
+    w_isi = sw.plot_isi_distribution(sorting, bins=10, window=1)
+    o_loc = os.path.join(out_loc, "isi.png")
+    print("Saving isi to {}".format(o_loc))
+    plt.savefig(o_loc, dpi=200)
+
+    # Can plot cross corr using - ignore for now
+    # w_cch = sw.plot_crosscorrelograms(
+    # sorting, unit_ids=[1, 5, 8], bin_size=0.1, window=5)
+    w_feat = sw.plot_pca_features(
+        recording, sorting, colormap='rainbow', nproj=3, max_spikes_per_unit=100)
+    o_loc = os.path.join(out_loc, "pca.png")
+    print("Plotting pca to {}".format(o_loc))
+    plt.savefig(o_loc, dpi=200)
+
     # See also spiketoolkit.postprocessing.get_unit_waveforms
-    num_samps = min(5, len(unit_ids))
+    num_samps = min(20, len(unit_ids))
     w_wf = sw.plot_unit_waveforms(
-        sorting=sorting, recording=recording, unit_ids=unit_ids[:num_samps])
+        sorting=sorting, recording=recording, unit_ids=unit_ids[:num_samps],
+        max_spikes_per_unit=100)
     o_loc = os.path.join(out_loc, "waveforms_" + str(num_samps) + ".png")
     print("Saving {} waveforms to {}".format(num_samps, o_loc))
     plt.savefig(o_loc, dpi=200)
+
+    wf_by_group = st.postprocessing.get_unit_waveforms(
+        recording, sorting, ms_before=1, ms_after=2,
+        save_as_features=False, verbose=True, grouping_property="group",
+        compute_property_from_recording=True)
+    o_loc = os.path.join(out_loc, "chan0_forms.png")
+    fig, ax = plt.subplots()
+    wf = wf_by_group[0]
+    colors = ["k", "r", "b", "g"]
+    for i in range(wf.shape[1]):
+        wave = wf[:, i, :]
+        c = colors[i]
+        ax.plot(wave.T, color=c, lw=0.3)
+    print("Saving first waveform on the first tetrode to {}".format(
+        o_loc))
+    fig.savefig(o_loc, dpi=200)
 
 def get_info(recording, prb_fname="channel_map.prb"):
     fs = recording.get_sampling_frequency()
