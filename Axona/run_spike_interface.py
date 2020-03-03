@@ -167,7 +167,7 @@ def get_sort_info(sorting, recording, out_loc):
     num_samps = min(20, len(unit_ids))
     w_wf = sw.plot_unit_waveforms(
         sorting=sorting, recording=recording, unit_ids=unit_ids[:num_samps],
-        max_spikes_per_unit=100)
+        max_spikes_per_unit=20)
     o_loc = os.path.join(out_loc, "waveforms_" + str(num_samps) + ".png")
     print("Saving {} waveforms to {}".format(num_samps, o_loc))
     plt.savefig(o_loc, dpi=200)
@@ -233,14 +233,29 @@ def main(location, sort_method, out_folder, tetrodes_to_use, remove_last_chan):
     run(location, sort_method, output_folder=out_folder, verbose=True,
         remove_last_chan=remove_last_chan)
 
+def load_sorting(in_dir, extract_method="phy"):
+    sorting_curated = None
+    if extract_method == "phy":
+        sorting_curated = se.PhySortingExtractor(in_dir)
+    return sorting_curated
+
 if __name__ == "__main__":
     sort_method = "klusta"
     check_params_only = False
+    load_sort = True
+    in_dir = r"G:\Ham\A10_CAR-SA2\CAR-SA2_20200109_PreBox"
+    fname = "CAR-SA2_2020-01-09_PreBox_shuff.bin"
     if check_params_only:
         print(custom_default_params_list(sort_method, check=False))
         exit(-1)
-    in_dir = r"G:\Ham\A10_CAR-SA2\CAR-SA2_20200109_PreBox"
-    fname = "CAR-SA2_2020-01-09_PreBox_shuff.bin"
+    if load_sort:
+        location = os.path.join(in_dir, "phy")
+        sorting = load_sorting(location)
+        spike_train = sorting.get_unit_spike_train(unit_id=35)
+        print(len(spike_train))
+        print(spike_train[:20] / 48000)
+        print(spike_train[-20:] / 48000)
+        exit(-1)
     out_folder = "results_all_klusta"
     tetrodes_to_use = [] # [] uses all 16
     remove_last_chan = True # Set to true for last chan on tetrode = eeg
