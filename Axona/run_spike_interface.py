@@ -29,6 +29,10 @@ def custom_default_params_list(sorter_name, check=False):
         default_params = default_params
     elif sorter_name == "klusta":
         default_params["detect_sign"] = 1
+        default_params["extract_s_before"] = 10
+        default_params["extract_s_after"] = 40
+        default_params["num_starting_clusters"] = 50
+        default_params["threshold_strong_std_factor"] = 4.5
     return default_params
 
 def run(location, sorter="klusta", output_folder="result", 
@@ -50,7 +54,7 @@ def run(location, sorter="klusta", output_folder="result",
     # Load the recording data
     recording = se.BinDatRecordingExtractor(
         file_path=location, offset=16, dtype=np.int16,
-        sampling_frequency=48000, numchan=64)
+        sampling_frequency=48000, numchan=64, time_axis=1)
     recording_prb = recording.load_probe_file(probe_loc)
     get_info(recording, probe_loc)
 
@@ -67,13 +71,15 @@ def run(location, sorter="klusta", output_folder="result",
     recording_f = st.preprocessing.bandpass_filter(
         recording_prb, freq_min=300, freq_max=6000)
     bad_chans = [
-            i for i in range(3, 63, 4) 
+            i for i in range(3, 64, 4) 
             if i in recording_f.get_channel_ids()]
     print("Removing {}".format(bad_chans))
     recording_rm_noise = st.preprocessing.remove_bad_channels(
         recording_f, bad_channel_ids=bad_chans)
     print('Channel ids after preprocess:',
           recording_rm_noise.get_channel_ids())
+    print('Channel groups after preprocess:',
+          recording_rm_noise.get_channel_groups())
     preproc_recording = recording_rm_noise
 
     # Get sorting params and run the sorting
@@ -214,21 +220,30 @@ def compare_sorters(sort1, sort2):
         'Units in agreement between Klusta and Mountainsort4:', sorting_agreement.get_unit_ids())
 
     w_multi = sw.plot_multicomp_graph(comp_multi)
+    plt.show()
 
-if __name__ == "__main__":
-    in_dir = r"G:\Ham\A10_CAR-SA2\CAR-SA2_20200109_PreBox"
-    fname = "CAR-SA2_2020-01-09_PreBox_shuff.bin"
-    out_folder = "results_tet12_klusta"
-    tetrodes_to_use = [] # [] uses all 16
-    remove_last_chan = False # Set to true for last chan on tetrode = eeg
-
+def main(location, sort_method, out_folder, tetrodes_to_use, remove_last_chan):
     print("Starting to run spike interface!")
-    location = os.path.join(in_dir, fname)
+    in_dir = os.path.dirname(location)
     out_loc = os.path.join(in_dir, out_folder, "channel_map.prb")
     os.makedirs(os.path.dirname(out_loc), exist_ok=True)
 
     write_prb_file(tetrodes_to_use=tetrodes_to_use, out_loc=out_loc)
-    run(location, "klusta", output_folder=out_folder, verbose=True,
+    # TODO can actually set channel gains on a recording
+    run(location, sort_method, output_folder=out_folder, verbose=True,
         remove_last_chan=remove_last_chan)
 
-    # TODO can actually set channel gains on a recording
+if __name__ == "__main__":
+    sort_method = "klusta"
+    check_params_only = False
+    if check_params_only:
+        print(custom_default_params_list(sort_method, check=False))
+        exit(-1)
+    in_dir = r"G:\Ham\A10_CAR-SA2\CAR-SA2_20200109_PreBox"
+    fname = "CAR-SA2_2020-01-09_PreBox_shuff.bin"
+    out_folder = "results_all_klusta"
+    tetrodes_to_use = [] # [] uses all 16
+    remove_last_chan = True # Set to true for last chan on tetrode = eeg
+    location = os.path.join(in_dir, fname)
+
+    main(location, sort_method, out_folder, tetrodes_to_use, remove_last_chan)
