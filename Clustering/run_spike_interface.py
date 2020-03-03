@@ -41,12 +41,13 @@ def custom_default_params_list(sorter_name, check=False):
         default_params["detect_threshold"] = 4.5
         default_params["template_width_ms"] = 3
         default_params["filter"] = False
-        default_params["num_workers"] = 1
+        default_params["num_workers"] = 8
     return default_params
 
 def run(location, sorter="klusta", output_folder="result", 
         verbose=False, view=False, phy_out_folder="phy",
-        remove_last_chan=False, **sorting_kwargs):
+        remove_last_chan=False, do_validate=False, 
+        do_parallel=False, **sorting_kwargs):
     """
     Run spike interface on a _shuff.bin file.
 
@@ -104,30 +105,33 @@ def run(location, sorter="klusta", output_folder="result",
     sorted_s = ss.run_sorter(
         sorter, preproc_recording, 
         grouping_property="group", output_folder=o_dir,
-        parallel=True, verbose=verbose, **params)
+        parallel=do_parallel, verbose=verbose, **params)
     print("Sorted in {:.2f}s".format(time() - start_time))
     
     # Some validation statistics
-    print("Spike sorting completed, running validation")
-    start_time = time()
-    snrs = st.validation.compute_snrs(sorted_s, preproc_recording)
-    isi_violations = st.validation.compute_isi_violations(sorted_s)
-    isolations = st.validation.compute_isolation_distances(
-        sorted_s, preproc_recording)
+    if do_validate:
+        print("Spike sorting completed, running validation")
+        start_time = time()
+        snrs = st.validation.compute_snrs(sorted_s, preproc_recording)
+        isi_violations = st.validation.compute_isi_violations(sorted_s)
+        isolations = st.validation.compute_isolation_distances(
+            sorted_s, preproc_recording)
 
-    print('SNR', snrs)
-    print('ISI violation ratios', isi_violations)
-    print('Isolation distances', isolations)
+        print('SNR', snrs)
+        print('ISI violation ratios', isi_violations)
+        print('Isolation distances', isolations)
 
-    # Do automatic curation based on the snr
-    sorting_curated_snr = st.curation.threshold_snr(
-        sorted_s, recording, threshold=5, threshold_sign='less')
-    snrs_above = st.validation.compute_snrs(
-        sorting_curated_snr, preproc_recording)
+        # Do automatic curation based on the snr
+        sorting_curated_snr = st.curation.threshold_snr(
+            sorted_s, recording, threshold=5, threshold_sign='less')
+        snrs_above = st.validation.compute_snrs(
+            sorting_curated_snr, preproc_recording)
 
-    print('Curated SNR', snrs_above)
+        print('Curated SNR', snrs_above)
+        print("Validated in {:.2f}s".format(time() - start_time))
+    else:
+        sorting_curated_snr = sorted_s
     get_sort_info(sorting_curated_snr, preproc_recording, o_dir)
-    print("Validated in {:.2f}s".format(time() - start_time))
 
     # Export the result to phy for manual curation
     start_time = time()
@@ -245,7 +249,7 @@ def compare_sorters(sort1, sort2):
 
 def main(
     location, sort_method, out_folder, tetrodes_to_use, 
-    remove_last_chan, phy_out_folder):
+    remove_last_chan, phy_out_folder, do_validate, do_parallel):
     print("Starting to run spike interface!")
     in_dir = os.path.dirname(location)
     out_loc = os.path.join(in_dir, out_folder, "channel_map.prb")
@@ -255,7 +259,7 @@ def main(
     # TODO can actually set channel gains on a recording
     run(location, sort_method, output_folder=out_folder, verbose=True,
         remove_last_chan=remove_last_chan, phy_out_folder=phy_out_folder,
-        view=False)
+        view=False, do_validate=do_validate, do_parallel=do_parallel)
 
 def load_sorting(in_dir, extract_method="phy"):
     sorting_curated = None
@@ -273,6 +277,8 @@ if __name__ == "__main__":
     phy_out_folder = "phy_spyall"
     tetrodes_to_use = [] # [] uses all 16
     remove_last_chan = True # Set to true for last chan on tetrode = eeg
+    do_validate = False
+    do_parallel = False # True is good for klusta
     if check_params_only:
         print(custom_default_params_list(sort_method, check=False))
         exit(-1)
@@ -287,6 +293,5 @@ if __name__ == "__main__":
     location = os.path.join(in_dir, fname)
 
     main(
-        location, sort_method, 
-        out_folder, tetrodes_to_use, 
-        remove_last_chan, phy_out_folder)
+        location, sort_method, out_folder, tetrodes_to_use,
+        remove_last_chan, phy_out_folder, do_validate, do_parallel)
