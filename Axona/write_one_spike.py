@@ -31,6 +31,8 @@ def get_one_spike(data, time, plot=True):
     post_spike_samps = 40
     print("Saving a spike at {}s".format(time))
     sample_idx = int(time * 48000)
+    print("Recalculated spike time is:")
+    print((data.size / (4 * 48000)) * (sample_idx / (data.size / 4)))
     s_data = data[:, sample_idx -
                   pre_spike_samps:sample_idx + post_spike_samps]
     if plot:
