@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import struct
+import matplotlib.pyplot as plt
 
 
 def int16toint8(value):
@@ -132,11 +133,26 @@ def write_tetrode(filepath, data, Fs):
         f.writelines(write_order)
 
 
+def plot_one_spike(spike_data, fname="tet.png"):
+    spike_data = list(spike_data.values())[0]
+    fig, axes = plt.subplots(4, figsize=(5, 10))
+    ts = np.arange(0, 1, 0.02)
+    for row, ax in zip(spike_data, axes):
+        # row = np.average(row, axis=0)
+        ax.plot(ts, row, c="k")
+    max_y = np.max(spike_data) * 1.1
+    min_y = np.min(spike_data) * 1.1
+    for ax in axes:
+        ax.set_ylim(min_y, max_y)
+    plt.savefig(fname, dpi=200)
+
+
 def main(location, tetrode=0, time=1):
     data = read_shuff_bin(location, tetrode)
     spike_data = get_one_spike(data, 1)
     out_loc = location[:-4] + "." + str(tetrode)
     write_tetrode(out_loc, spike_data, 48000)
+    plot_one_spike(spike_data)
 
 
 if __name__ == "__main__":
