@@ -90,11 +90,12 @@ def write_tetrode(filepath, data, Fs):
         f.writelines(write_order)
 
     # rearranging the data to have a flat array of t1, waveform1, t2, waveform2, t3, waveform3, etc....
-    spike_times = np.asarray(sorted(data.keys()))
+    spike_times = np.asarray(sorted(data.keys())) * 96000
 
     # the spike times are repeated for each channel so lets tile this
     spike_times = np.tile(spike_times, (4, 1))
     spike_times = spike_times.flatten(order='F')
+    print(spike_times)
 
     spike_values = np.asarray([value for (key, value) in sorted(data.items())])
 
@@ -104,6 +105,7 @@ def write_tetrode(filepath, data, Fs):
     # make the first column the time values
     spike_array = np.hstack(
         (spike_times.reshape(len(spike_times), 1), spike_values))
+    print(spike_array)
 
     data = None
     spike_times = None
@@ -154,20 +156,20 @@ def plot_one_spike(spike_data, fname="tet.png"):
     max_y = np.max(spike_data) * 1.1
     min_y = np.min(spike_data) * 1.1
     for ax in axes:
-        ax.set_ylim(min_y, max_y)
+        ax.set_ylim(-126, 125)
     plt.savefig(fname, dpi=200)
 
 
 def main(location, tetrode=0, time=1):
     data = read_shuff_bin(location, tetrode)
-    spike_data = get_one_spike(data, 1)
+    spike_data = get_one_spike(data, time)
     out_loc = location[:-4] + "." + str(tetrode)
     write_tetrode(out_loc, spike_data, 48000)
     plot_one_spike(spike_data)
 
 
 if __name__ == "__main__":
-    location = r"D:\CAR-SA4_20200301_PreBox\CAR-SA4_2020-03-01_PreBox.bin"
-    tetrode = 12
-    time = 1
+    location = r"F:\CAR-SA4_20200301_PreBox\CAR-SA4_2020-03-01_PreBox.bin"
+    tetrode = 1
+    time = 7.2
     main(location, tetrode=tetrode, time=time)
