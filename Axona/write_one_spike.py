@@ -26,16 +26,25 @@ def read_shuff_bin(location, tetrode=0):
     return out_data
 
 
-def get_one_spike(data, time):
+def get_one_spike(data, time, plot=True):
     pre_spike_samps = 10
     post_spike_samps = 40
-    print("Saving a spike at {}".format(time))
+    print("Saving a spike at {}s".format(time))
     sample_idx = int(time * 48000)
-    spike = {
-        time:
-        np.rint(int16toint8(
-            data[:, sample_idx - pre_spike_samps:sample_idx + post_spike_samps]))
-    }
+    s_data = data[:, sample_idx -
+                  pre_spike_samps:sample_idx + post_spike_samps]
+    if plot:
+        fig, axes = plt.subplots(4, figsize=(5, 10))
+        ts = np.arange(0, 1, 0.02)
+        for row, ax in zip(s_data, axes):
+            # row = np.average(row, axis=0)
+            ax.plot(ts, row, c="k")
+        max_y = np.max(s_data) * 1.1
+        min_y = np.min(s_data) * 1.1
+        for ax in axes:
+            ax.set_ylim(min_y, max_y)
+        plt.savefig("raw_tet.png", dpi=200)
+    spike = {time: np.rint(int16toint8(s_data))}
     return spike
 
 
