@@ -131,19 +131,45 @@ def run(location, sorter="klusta", output_folder="result",
         print("Validated in {:.2f}s".format(time() - start_time))
     else:
         sorting_curated_snr = sorted_s
-    get_sort_info(sorting_curated_snr, preproc_recording, o_dir)
 
     # Export the result to phy for manual curation
     start_time = time()
     phy_out = os.path.join(in_dir, phy_out_folder)
+    # TEMP test do two
     print("Exporting to phy")
     st.postprocessing.export_to_phy(
-        recording, sorting_curated_snr, 
+        recording, sorting_curated_snr,
         output_folder=phy_out, grouping_property='group',
         verbose=verbose, ms_before=0.2, ms_after=0.8, dtype=None,
         max_channels_per_template=8)
     print("Exported in {:.2f}s".format(time() - start_time))
-    print("Whole pipeline took {:.2f}mins".format((time() - o_start)/60))
+    pipeline_time = (time() - o_start) / 60.0
+    print("Whole pipeline took {:.2f}mins".format(pipeline_time))
+
+    # start_time = time()
+    # phy_out = os.path.join(in_dir, phy_out_folder+"raw")
+    # # TEMP test do two
+    # print("Exporting to phy")
+    # st.postprocessing.export_to_phy(
+    #     recording, sorting_curated_snr,
+    #     output_folder=phy_out, grouping_property='group',
+    #     verbose=verbose, ms_before=0.2, ms_after=0.8, dtype=None,
+    #     max_channels_per_template=8, max_spikes_for_pca=1000)
+    # print("Exported in {:.2f}s".format(time() - start_time))
+    # pipeline_time = (time() - o_start) / 60.0
+    # print("Whole pipeline took {:.2f}mins".format(pipeline_time))
+    
+    do_plot = False
+    print("Showing some extra information")
+    start_time = time()
+    if do_plot:
+        get_sort_info(sorting_curated_snr, preproc_recording, o_dir)
+    else:
+        unit_ids = sorting_curated_snr.get_unit_ids()
+        print("Found", len(unit_ids), 'units')
+        plot_all_forms(sorting_curated_snr, recording, o_dir)
+    print("Summarised recording in {:.2f}s".format(time() - start_time))
+
     phy_final = os.path.join(phy_out, "params.py")
     if view:
         subprocess.run(["phy", "template-gui", phy_final])
@@ -213,6 +239,27 @@ def get_sort_info(sorting, recording, out_loc):
         o_loc))
     fig.savefig(o_loc, dpi=200)
 
+def plot_all_forms(sorting, recording, out_loc):
+    wf_by_group = st.postprocessing.get_unit_waveforms(
+        recording, sorting, ms_before=0.2, ms_after=0.8,
+        save_as_features=True, verbose=False, grouping_property="group",
+        compute_property_from_recording=True, max_spikes_per_unit=100,
+        )
+    unit_ids = sorting.get_unit_ids()
+    for i, wf in enumerate(wf_by_group):
+        tetrode = sorting.get_unit_property(unit_ids[i], "group")
+        fig, axes = plt.subplots(3)
+        for j in range(3):
+            wave = wf[:, j, :]
+            axes[j].plot(wave.T, color="k", lw=0.3)
+        o_loc = os.path.join(
+            out_loc, "tet{}_unit{}_forms.png".format(
+                tetrode, unit_ids[i]))
+        print("Saving waveform {} on tetrode {} to {}".format(
+            unit_ids[i], tetrode, o_loc))
+        fig.savefig(o_loc, dpi=200)
+        plt.close("all")
+
 def get_info(recording, prb_fname="channel_map.prb"):
     fs = recording.get_sampling_frequency()
     num_chan = recording.get_num_channels()
@@ -268,17 +315,17 @@ def load_sorting(in_dir, extract_method="phy"):
     return sorting_curated
 
 if __name__ == "__main__":
-    sort_method = "spykingcircus"
+    sort_method = "klusta"
     check_params_only = False
     load_sort = False
     in_dir = r"G:\Ham\A10_CAR-SA2\CAR-SA2_20200109_PreBox"
     fname = "CAR-SA2_2020-01-09_PreBox_shuff.bin"
-    out_folder = "results_allspy"
-    phy_out_folder = "phy_spyall"
+    out_folder = "results_klusta04_v2_f"
+    phy_out_folder = "phy_klusta04_v2_f"
     tetrodes_to_use = [] # [] uses all 16
     remove_last_chan = True # Set to true for last chan on tetrode = eeg
-    do_validate = False
-    do_parallel = False # True is good for klusta
+    do_validate = True
+    do_parallel = True # True is good for klusta
     if check_params_only:
         print(custom_default_params_list(sort_method, check=False))
         exit(-1)
