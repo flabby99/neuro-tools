@@ -14,6 +14,7 @@ import numpy as np
 from channel_map import write_prb_file
 
 from time import time
+import subprocess
 
 def list_sorters():
     """Print a list of spikeinterface sorters."""
@@ -233,12 +234,21 @@ def get_sort_info(sorting, recording, out_loc):
 def plot_all_forms(sorting, recording, out_loc):
     wf_by_group = st.postprocessing.get_unit_waveforms(
         recording, sorting, ms_before=0.2, ms_after=0.8,
-        save_as_features=True, verbose=False, grouping_property="group",
-        compute_property_from_recording=True, max_spikes_per_unit=100,
-        )
+        save_as_features=False, verbose=False, grouping_property="group",
+        compute_property_from_recording=True, max_spikes_per_unit=100)
     unit_ids = sorting.get_unit_ids()
     for i, wf in enumerate(wf_by_group):
-        tetrode = sorting.get_unit_property(unit_ids[i], "group")
+        try:
+            tetrode = sorting.get_unit_property(unit_ids[i], "group")
+        except Exception:
+            try:
+                tetrode = sorting.get_unit_property(
+                    unit_ids[i], "ch_group")
+            except Exception:
+                print("Unable to find cluster group or group in units")
+                print(sorting.get_shared_unit_property_names())
+                return
+
         fig, axes = plt.subplots(3)
         for j in range(3):
             wave = wf[:, j, :]
@@ -307,7 +317,7 @@ def load_sorting(in_dir, extract_method="phy"):
 
 if __name__ == "__main__":
     check_params_only = False
-    load_sort = False
+    load_sort = True
     
     sort_method = "klusta"
     if sort_method == "klusta":
@@ -317,8 +327,18 @@ if __name__ == "__main__":
     elif sort_method == "herdingspikes":
         do_parallel = True
 
-    in_dir = r"G:\Ham\A10_CAR-SA2\CAR-SA2_20200109_PreBox"
-    fname = "CAR-SA2_2020-01-09_PreBox_shuff.bin"
+    in_dir = r"G:\Ham\A10_CAR-SA2\CAR-SA2_20200110"
+    fname = "CAR-SA2_2020-01-10.set"
+    overwrite = False
+    set_fullname = os.path.join(in_dir, fname)
+    bin_fname = fname[:-4] + "_shuff.bin"
+    bin_fullname = os.path.join(in_dir, bin_fname)
+    if (not os.path.exists(bin_fullname)) or overwrite:
+        print("Writing binary info to {}".format(bin_fullname))
+        subprocess.run(["AxonaBinary", set_fullname, "read"])
+
+    else:
+        print("Reading binary info from {}".format(bin_fullname))
     default_out_names = True
     
     if default_out_names:
@@ -339,13 +359,18 @@ if __name__ == "__main__":
     if load_sort:
         location = os.path.join(in_dir, phy_out_folder)
         sorting = load_sorting(location)
-        spike_train = sorting.get_unit_spike_train(unit_id=35)
-        print(len(spike_train))
-        print(spike_train[:20] / 48000)
-        print(spike_train[-20:] / 48000)
+        recording = se.BinDatRecordingExtractor(
+            file_path=bin_fullname, offset=16, dtype=np.int16,
+            sampling_frequency=48000, numchan=64, time_axis=1)
+        recording_prb = recording.load_probe_file(
+            os.path.join(in_dir, out_folder, "channel_map.prb"))
+        plot_all_forms(sorting, recording_prb, os.path.join(in_dir, out_folder))
+        # spike_train = sorting.get_unit_spike_train(unit_id=35)
+        # print(len(spike_train))
+        # print(spike_train[:20] / 48000)
+        # print(spike_train[-20:] / 48000)
         exit(-1)
-    location = os.path.join(in_dir, fname)
 
     main(
-        location, sort_method, out_folder, tetrodes_to_use,
+        bin_fullname, sort_method, out_folder, tetrodes_to_use,
         remove_last_chan, phy_out_folder, do_validate, do_parallel)
