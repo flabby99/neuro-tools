@@ -24,12 +24,17 @@ def write_prb_file(
         geometry = {}
         label_letters = ["a", "b", "c", "d"]
         label = [str(i+1) + label_letters[k] for k in range(num_chans_for_clust)]
+        graph = []
         for j, c in enumerate(chans):
             geometry[c] = [i * 2 * radius, j*y]
+        for j in range(len(chans)):
+            for k in range(j+1, len(chans)):
+                graph.append((chans[j], chans[k]))
         channel_groups[i] = {
             'channels': chans,
             'geometry': geometry,
-            'label': label}
+            'label': label,
+            'graph': graph}
 
     with open(out_loc, "w") as f:
         f.write("channel_groups = {\n")
@@ -42,4 +47,5 @@ def write_prb_file(
         f.write("\n\t}")
 
 if __name__ == "__main__":
-    write_prb_file()
+    write_prb_file(
+        tetrodes_to_use=[], num_chans_for_clust=3, radius=1)
