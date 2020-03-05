@@ -87,6 +87,8 @@ void AxonaBinReader::Init(std::string name)
 	_out_fname = base_name;
 	inp_name.append(".inp");
 	_out_inpname = inp_name;
+  _dir_name = dir_from_file(_out_fname);
+  std::cout << _dir_name << std::endl;
 }
 
 bool const AxonaBinReader::ToInp()
@@ -239,8 +241,30 @@ bool const AxonaBinReader::Read()
 	{
 		outfile.write((char *)channel_data[i].data(), sample_size_to_write);
 	}
-	outfile.close();
 
+  // Do all the file writing at the end
+
+  // Write the channel data out in blocks
+  sample_size_to_write = _sample_bytes * (total_samples / 64);
+  for (int i = 0; i < _num_channels; ++i)
+  {
+    // TEMP ignore last channel
+    int mod_bit = i % 3;
+    if (mod_bit == 0 && i != 63) {
+      std::string temp_fname = _dir_name;
+      temp_fname.append("results_klusta2/");
+      std::string mod_str = std::to_string(mod_bit);
+      temp_fname.append(mod_str);
+      temp_fname.append("/recording.dat");
+      // TODO need to change this
+      
+      outfile.open(temp_fname, std::ios::out | std::ios::binary);
+    }
+    if (mod_bit != 0 && i != 0) {
+      outfile.write((char*)channel_data[i].data(), sample_size_to_write);
+    }
+  }
+  outfile.close();
 	// Write a test file with channel 1 data
 	// std::string test_name = _bin_fname.substr(0, _bin_fname.length() - 4);
 	// test_name.append("_1.txt");
