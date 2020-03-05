@@ -42,6 +42,8 @@ def custom_default_params_list(sorter_name, check=False):
         default_params["template_width_ms"] = 3
         default_params["filter"] = False
         default_params["num_workers"] = 8
+    elif sorter_name == "herdingspikes":
+        default_params["filter"] = False
     return default_params
 
 def run(location, sorter="klusta", output_folder="result", 
@@ -162,10 +164,10 @@ def run(location, sorter="klusta", output_folder="result",
     phy_final = os.path.join(phy_out, "params.py")
     if view:
         subprocess.run(["phy", "template-gui", phy_final])
-    # else:
-    #     print(
-    #         "To view the data in phy, run: phy template-gui {}".format(
-    #         phy_final))
+    else:
+        print(
+            "To view the data in phy, run: phy template-gui {}".format(
+            phy_final))
 
     # If you need to process the data further!
     # sorting_phy_curated = se.PhySortingExtractor("phy")
@@ -243,9 +245,9 @@ def plot_all_forms(sorting, recording, out_loc):
             axes[j].plot(wave.T, color="k", lw=0.3)
         o_loc = os.path.join(
             out_loc, "tet{}_unit{}_forms.png".format(
-                tetrode, unit_ids[i]))
+                tetrode, i))
         print("Saving waveform {} on tetrode {} to {}".format(
-            unit_ids[i], tetrode, o_loc))
+            i, tetrode, o_loc))
         fig.savefig(o_loc, dpi=200)
         plt.close("all")
 
@@ -304,17 +306,33 @@ def load_sorting(in_dir, extract_method="phy"):
     return sorting_curated
 
 if __name__ == "__main__":
-    sort_method = "klusta"
     check_params_only = False
     load_sort = False
+    
+    sort_method = "klusta"
+    if sort_method == "klusta":
+        do_parallel = True
+    elif sort_method == "spykingcircus":
+        do_parallel = False
+    elif sort_method == "herdingspikes":
+        do_parallel = True
+
     in_dir = r"G:\Ham\A10_CAR-SA2\CAR-SA2_20200109_PreBox"
     fname = "CAR-SA2_2020-01-09_PreBox_shuff.bin"
-    out_folder = "results_klusta04_v2_f"
-    phy_out_folder = "phy_klusta04_v2_f"
+    default_out_names = True
+    
+    if default_out_names:
+        out_folder = "results_" + sort_method
+        phy_out_folder = "phy_" + sort_method
+    else:
+        out_folder = "res"
+        phy_out_folder = "phy"
+    
     tetrodes_to_use = [] # [] uses all 16
     remove_last_chan = True # Set to true for last chan on tetrode = eeg
     do_validate = True
-    do_parallel = True # True is good for klusta
+    
+    # Actual execution here
     if check_params_only:
         print(custom_default_params_list(sort_method, check=False))
         exit(-1)
