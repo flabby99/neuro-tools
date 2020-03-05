@@ -83,7 +83,7 @@ void AxonaBinReader::Init(std::string name)
 	std::string inp_name = base_name;
 	bin_name.append(".bin");
 	SetBinFname(bin_name);
-	base_name.append("_shuff.bin");
+	base_name.append("_shuff_t.bin");
 	_out_fname = base_name;
 	inp_name.append(".inp");
 	_out_inpname = inp_name;
@@ -158,12 +158,13 @@ bool const AxonaBinReader::Read()
 	long long total_samples = fsize / _chunksize;
 	total_samples *= _samples_per_chunk;
 	std::cout << "Total samples " << total_samples << std::endl;
+  bool write_header = false;
 
 	// Set up buffers and storage vectors
 	const int buff_size = _chunksize;
 	std::vector<char> buffer(buff_size, 0);
 	std::vector<std::vector<int16_t>> channel_data(
-		_num_channels, std::vector<int16_t>(total_samples, 0));
+    total_samples, std::vector<int16_t>(_num_channels, 0));
 	std::vector<uint64_t> digital_vals;
 
 	// Open the file
@@ -174,16 +175,18 @@ bool const AxonaBinReader::Read()
 	// Setup the header and start the clock
 	auto start = std::chrono::high_resolution_clock::now();
 	std::ofstream outfile(_out_fname, std::ios::out | std::ios::binary);
-	const char header[4] = "bax";
-	outfile.write(header, 3);
-	std::string str = std::to_string(total_samples);
-	while (str.length() != 10)
-	{
-		str.insert(0, "0");
-	}
-	char const *pchar = str.c_str();
-	outfile.write(pchar, 10);
-	outfile.write(header, 3);
+  if (write_header) {
+    const char header[4] = "bax";
+    outfile.write(header, 3);
+    std::string str = std::to_string(total_samples);
+    while (str.length() != 10)
+    {
+      str.insert(0, "0");
+    }
+    char const* pchar = str.c_str();
+    outfile.write(pchar, 10);
+    outfile.write(header, 3);
+  }
 
 	// Setup variables
 	uint16_t last_input_val = 1000;
@@ -220,7 +223,7 @@ bool const AxonaBinReader::Read()
 			int row_sample = compare_val % _num_channels;
 			int col_sample = sample_count + (compare_val / _num_channels);
 			int16_t val = ConvertBytes(buffer[i + 1], buffer[i]);
-			channel_data[_reverse_map_channels[row_sample]][col_sample] = val;
+			channel_data[col_sample][_reverse_map_channels[row_sample]] = val;
 		}
 
 		sample_count += 3;
@@ -232,10 +235,10 @@ bool const AxonaBinReader::Read()
 	start = std::chrono::high_resolution_clock::now();
 
 	// Do all the file writing at the end
-	int sample_size_to_write = _sample_bytes * total_samples;
+	int sample_size_to_write = _sample_bytes * _num_channels;
 
 	// Write the channel data out
-	for (int i = 0; i < _num_channels; ++i)
+	for (int i = 0; i < total_samples; ++i)
 	{
 		outfile.write((char *)channel_data[i].data(), sample_size_to_write);
 	}
@@ -295,8 +298,8 @@ int main(int argc, char **argv)
 	std::cout << "Converting " << location << std::endl;
 	if (argc >= 3)
 	{
-		// axbr.Read();
-		axbr.ParseReferences();
+		axbr.Read();
+		// axbr.ParseReferences();
 	}
 	else
 	{

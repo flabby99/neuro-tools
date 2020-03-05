@@ -17,8 +17,8 @@ def read_shuff_bin(location, channels=[0], times=[1], fname="fig.png"):
     one_channel_len = int((bytes_size - 16) / 128)
     num_chans = 64
     data = np.memmap(
-        location, dtype="int16", offset=16, mode="r", 
-        shape=(num_chans, one_channel_len))
+        location, dtype="int16", offset=0, mode="r", 
+        shape=(num_chans, one_channel_len)[::-1]).transpose()
     ts = np.arange(0, 1, 0.02)
     out_data = np.zeros(
         shape=(len(channels), len(times), len(ts)), dtype=np.int16)
@@ -48,7 +48,7 @@ def read_shuff_bin(location, channels=[0], times=[1], fname="fig.png"):
 
 if __name__ == "__main__":
     location = r"C:\Users\smartin5\Recordings\Raw\2min\CS1_18_02_open_2_bin_shuff.bin"
-    location = r"G:\Ham\A10_CAR-SA2\CAR-SA2_20200109_PreBox\CAR-SA2_2020-01-09_PreBox_shuff.bin"
+    location = r"G:\Ham\A10_CAR-SA2\CAR-SA2_20200109_PreBox\CAR-SA2_2020-01-09_PreBox_shuff_t.bin"
     # location = r"F:\CAR-SA4_20200301_PreBox\CAR-SA4_2020-03-01_PreBox.bin"
     tetrode = 12
     channels = [4 * (tetrode-1) + i for i in range(4)]
@@ -75,4 +75,4 @@ if __name__ == "__main__":
         times.append(t)
     nc_plot.wave_property(ns.wave_property())
     plt.savefig("wave.png")
-    read_shuff_bin(location, channels, times, fname="test12_1_ac_new2.png")
+    read_shuff_bin(location, channels, times, fname="test12_1_ac_new_t.png")
