@@ -106,58 +106,46 @@ def run(location, sorter="klusta", output_folder="result",
         sorter, preproc_recording, 
         grouping_property="group", output_folder=o_dir,
         parallel=do_parallel, verbose=verbose, **params)
-    print("Sorted in {:.2f}s".format(time() - start_time))
+    print("Sorted in {:.2f}mins".format((time() - start_time)/60.0))
     
     # Some validation statistics
     if do_validate:
         print("Spike sorting completed, running validation")
         start_time = time()
-        snrs = st.validation.compute_snrs(sorted_s, preproc_recording)
-        isi_violations = st.validation.compute_isi_violations(sorted_s)
-        isolations = st.validation.compute_isolation_distances(
-            sorted_s, preproc_recording)
-
-        print('SNR', snrs)
-        print('ISI violation ratios', isi_violations)
-        print('Isolation distances', isolations)
-
-        # Do automatic curation based on the snr
         sorting_curated_snr = st.curation.threshold_snr(
             sorted_s, recording, threshold=5, threshold_sign='less')
-        snrs_above = st.validation.compute_snrs(
-            sorting_curated_snr, preproc_recording)
+        
+        # Extra stats that can be printed but takes time
+        # snrs = st.validation.compute_snrs(sorted_s, preproc_recording)
+        # isi_violations = st.validation.compute_isi_violations(sorted_s)
+        # isolations = st.validation.compute_isolation_distances(
+        #     sorted_s, preproc_recording)
 
-        print('Curated SNR', snrs_above)
-        print("Validated in {:.2f}s".format(time() - start_time))
+        # print('SNR', snrs)
+        # print('ISI violation ratios', isi_violations)
+        # print('Isolation distances', isolations)
+
+        # Do automatic curation based on the snr
+        # snrs_above = st.validation.compute_snrs(
+        #     sorting_curated_snr, preproc_recording)
+        # print('Curated SNR', snrs_above)
+
+        print("Validated in {:.2f}mins".format((time() - start_time)/60.0))
     else:
         sorting_curated_snr = sorted_s
 
     # Export the result to phy for manual curation
     start_time = time()
     phy_out = os.path.join(in_dir, phy_out_folder)
-    # TEMP test do two
     print("Exporting to phy")
     st.postprocessing.export_to_phy(
         recording, sorting_curated_snr,
         output_folder=phy_out, grouping_property='group',
         verbose=verbose, ms_before=0.2, ms_after=0.8, dtype=None,
-        max_channels_per_template=8)
+        max_channels_per_template=8, max_spikes_for_pca=5000)
     print("Exported in {:.2f}s".format(time() - start_time))
     pipeline_time = (time() - o_start) / 60.0
     print("Whole pipeline took {:.2f}mins".format(pipeline_time))
-
-    # start_time = time()
-    # phy_out = os.path.join(in_dir, phy_out_folder+"raw")
-    # # TEMP test do two
-    # print("Exporting to phy")
-    # st.postprocessing.export_to_phy(
-    #     recording, sorting_curated_snr,
-    #     output_folder=phy_out, grouping_property='group',
-    #     verbose=verbose, ms_before=0.2, ms_after=0.8, dtype=None,
-    #     max_channels_per_template=8, max_spikes_for_pca=1000)
-    # print("Exported in {:.2f}s".format(time() - start_time))
-    # pipeline_time = (time() - o_start) / 60.0
-    # print("Whole pipeline took {:.2f}mins".format(pipeline_time))
     
     do_plot = False
     print("Showing some extra information")
@@ -167,8 +155,9 @@ def run(location, sorter="klusta", output_folder="result",
     else:
         unit_ids = sorting_curated_snr.get_unit_ids()
         print("Found", len(unit_ids), 'units')
-        plot_all_forms(sorting_curated_snr, recording, o_dir)
-    print("Summarised recording in {:.2f}s".format(time() - start_time))
+        plot_all_forms(sorting_curated_snr, preproc_recording, o_dir)
+    print(
+        "Summarised recording in {:.2f}mins".format((time() - start_time)/60.0))
 
     phy_final = os.path.join(phy_out, "params.py")
     if view:
@@ -304,7 +293,7 @@ def main(
 
     write_prb_file(tetrodes_to_use=tetrodes_to_use, out_loc=out_loc)
     # TODO can actually set channel gains on a recording
-    run(location, sort_method, output_folder=out_folder, verbose=True,
+    run(location, sort_method, output_folder=out_folder, verbose=False,
         remove_last_chan=remove_last_chan, phy_out_folder=phy_out_folder,
         view=False, do_validate=do_validate, do_parallel=do_parallel)
 
