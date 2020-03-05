@@ -251,7 +251,11 @@ def plot_all_forms(sorting, recording, out_loc):
 
         fig, axes = plt.subplots(3)
         for j in range(3):
-            wave = wf[:, j, :]
+            try:
+                wave = wf[:, j, :]
+            except Exception:
+                print("Error with wave shape, wave shape is {}".format(
+                    wave.shape))
             axes[j].plot(wave.T, color="k", lw=0.3)
         o_loc = os.path.join(
             out_loc, "tet{}_unit{}_forms.png".format(
