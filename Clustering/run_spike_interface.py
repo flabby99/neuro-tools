@@ -254,8 +254,7 @@ def plot_all_forms(sorting, recording, out_loc):
             try:
                 wave = wf[:, j, :]
             except Exception:
-                print("Error with wave shape, wave shape is {}".format(
-                    wave.shape))
+                wave = wf[j, :]
             axes[j].plot(wave.T, color="k", lw=0.3)
         o_loc = os.path.join(
             out_loc, "tet{}_unit{}_forms.png".format(
@@ -363,9 +362,11 @@ if __name__ == "__main__":
     if load_sort:
         location = os.path.join(in_dir, phy_out_folder)
         sorting = load_sorting(location)
-        recording = se.BinDatRecordingExtractor(
-            file_path=bin_fullname, offset=16, dtype=np.int16,
-            sampling_frequency=48000, numchan=64, time_axis=1)
+        # recording = se.BinDatRecordingExtractor(
+        #     file_path=bin_fullname, offset=16, dtype=np.int16,
+        #     sampling_frequency=48000, numchan=64, time_axis=1)
+        recording_name = os.path.join(in_dir, phy_out_folder)
+        recording = se.PhyRecordingExtractor(recording_name)
         recording_prb = recording.load_probe_file(
             os.path.join(in_dir, out_folder, "channel_map.prb"))
         plot_all_forms(sorting, recording_prb, os.path.join(in_dir, out_folder))
