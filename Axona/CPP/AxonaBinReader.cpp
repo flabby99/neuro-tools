@@ -253,14 +253,15 @@ bool const AxonaBinReader::Read()
     if (mod_bit == 0 && i != 63) {
       std::string temp_fname = _dir_name;
       temp_fname.append("results_klusta2/");
-      std::string mod_str = std::to_string(mod_bit);
+      int chan = i / 4;
+      std::string mod_str = std::to_string(chan);
       temp_fname.append(mod_str);
       temp_fname.append("/recording.dat");
       // TODO need to change this
-      
+      std::cout << "Writing split data to " << temp_fname << std::endl;
       outfile.open(temp_fname, std::ios::out | std::ios::binary);
     }
-    if (mod_bit != 0 && i != 0) {
+    if (mod_bit != 0 || i == 0) {
       outfile.write((char*)channel_data[i].data(), sample_size_to_write);
     }
   }
