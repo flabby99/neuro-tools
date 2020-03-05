@@ -295,8 +295,8 @@ int main(int argc, char **argv)
 	std::cout << "Converting " << location << std::endl;
 	if (argc >= 3)
 	{
-		// axbr.Read();
-		axbr.ParseReferences();
+		axbr.Read();
+		//axbr.ParseReferences();
 	}
 	else
 	{
