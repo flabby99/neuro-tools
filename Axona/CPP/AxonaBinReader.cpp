@@ -261,9 +261,20 @@ bool const AxonaBinReader::Read()
       outfile.close();
       outfile.open(temp_fname, std::ios::out | std::ios::binary);
     }
-    if ((i+1) % 4 != 0) {
-      std::cout << "Writing samples " << i << std::endl;
-      outfile.write((char*)channel_data[i].data(), sample_size_to_write);
+    if (transpose) {
+      if (i % 4 == 0) {
+        std::cout << "Writing channels " << i << std::endl;
+        for (int j = 0; j < total_samples; ++j) {
+          for (int k = 0; k < 3; ++k) {
+            outfile.write((char*)&channel_data[i + k][j], _sample_bytes);
+          }
+        }
+      }
+    }
+    else {
+      if ((i + 1) % 4 != 0) {
+        outfile.write((char*)channel_data[i].data(), sample_size_to_write);
+      }
     }
   }
   outfile.close();
