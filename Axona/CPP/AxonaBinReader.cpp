@@ -359,9 +359,9 @@ bool const AxonaBinReader::Read()
 
 int main(int argc, char **argv)
 {
-    if (argc < 2)
+    if (argc < 4)
     {
-        std::cout << "Please enter at least one command line argument - the location of the .set file to convert" << std::endl;
+        std::cout << "Please enter as AxonaBinary location tranpose(T/F) tranpose_split(T/F)" << std::endl;
         exit(-1);
     }
     std::string location(argv[1]);
@@ -372,14 +372,15 @@ int main(int argc, char **argv)
     }
     AxonaBinReader axbr{location};
     std::cout << "Converting " << location << std::endl;
-    if (argc >= 4)
-    {
+    if (argv[3] == "T")
+    {   
+        std::cout << "Will transpose the main outfile" << std::endl;
         axbr.SetTranspose();
-        axbr.SetSplitTranspose();
     }
-    else if (argc >= 3)
-    {
-        axbr.SetTranspose();
+    if (argv[4] == "T")
+    {   
+        std::cout << "Will transpose the split outfiles" << std::endl;
+        axbr.SetSplitTranspose();
     }
     axbr.Read()
 }

@@ -348,12 +348,14 @@ def main_cfg(config):
     do_validate = config.getboolean("sorting", "do_validation")
     do_plot_waveforms = config.getboolean("sorting", "plot_waveforms")
 
+    # Note in AxonaBinary the format is
+    # AxonaBinary loc tranpose_full transpose_split
     if sort_method == "klusta":
         do_parallel = True
+        end_params = ["F", "T"]
     elif sort_method == "spykingcircus":
         do_parallel = False
-    elif sort_method == "herdingspikes":
-        do_parallel = True
+        end_params = ["F", "F"]
 
     if fname == "default":
         set_files = get_all_files_in_dir(
@@ -371,7 +373,8 @@ def main_cfg(config):
     bin_fullname = os.path.join(in_dir, bin_fname)
     if (not os.path.exists(bin_fullname)) or overwrite_bin:
         print("Writing binary info to {}".format(bin_fullname))
-        subprocess.run(["AxonaBinary", set_fullname, "read"])
+        run_params = ["AxonaBinary", set_fullname, *end_params]
+        subprocess.run(run_params)
     else:
         print("Reading binary info from {}".format(bin_fullname))
 
