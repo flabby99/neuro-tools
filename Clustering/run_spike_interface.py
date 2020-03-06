@@ -189,7 +189,7 @@ def compare_sorters(sort1, sort2):
 def run(location, sorter="klusta", output_folder="result",
         verbose=False, view=False, phy_out_folder="phy",
         remove_last_chan=False, do_validate=False,
-        do_parallel=False, do_plot_waveforms=True,
+        do_parallel=False, do_plot_waveforms=True, transposed=False,
         **sorting_kwargs):
     """
     Run spike interface on a _shuff.bin file.
@@ -207,9 +207,13 @@ def run(location, sorter="klusta", output_folder="result",
 
     # Load the recording data
     start_time = time()
+    if transposed:
+        time_axis = 0
+    else:
+        time_axis = 1
     recording = se.BinDatRecordingExtractor(
         file_path=location, offset=16, dtype=np.int16,
-        sampling_frequency=48000, numchan=64, time_axis=1)
+        sampling_frequency=48000, numchan=64, time_axis=time_axis)
     recording_prb = recording.load_probe_file(probe_loc)
     get_info(recording, probe_loc)
 
@@ -322,7 +326,7 @@ def run(location, sorter="klusta", output_folder="result",
 def start_control(
         location, sort_method, out_folder, tetrodes_to_use,
         remove_last_chan, phy_out_folder, do_validate, do_parallel,
-        do_plot_waveforms):
+        do_plot_waveforms, transposed):
     print("Starting to run spike interface!")
     in_dir = os.path.dirname(location)
     out_loc = os.path.join(in_dir, out_folder, "channel_map.prb")
@@ -332,7 +336,7 @@ def start_control(
     run(location, sort_method, output_folder=out_folder, verbose=False,
         remove_last_chan=remove_last_chan, phy_out_folder=phy_out_folder,
         view=False, do_validate=do_validate, do_parallel=do_parallel,
-        do_plot_waveforms=do_plot_waveforms)
+        do_plot_waveforms=do_plot_waveforms, transposed=False)
 
 
 def main_cfg(config):
@@ -352,10 +356,11 @@ def main_cfg(config):
     # AxonaBinary loc tranpose_full transpose_split
     if sort_method == "klusta":
         do_parallel = True
-        end_params = ["F", "T"]
+        # TODO test if this works well or write another
+        end_params = ["T", "F", "T"]
     elif sort_method == "spykingcircus":
         do_parallel = False
-        end_params = ["F", "F"]
+        end_params = ["F", "F", "F"]
 
     if fname == "default":
         set_files = get_all_files_in_dir(
@@ -368,7 +373,8 @@ def main_cfg(config):
     else:
         set_fullname = os.path.join(in_dir, fname)
 
-    make_folder_structure(in_dir, out_dir)
+    if end_params[1] == "T":
+        make_folder_structure(in_dir, out_dir)
     bin_fname = fname[:-4] + "_shuff.bin"
     bin_fullname = os.path.join(in_dir, bin_fname)
     if (not os.path.exists(bin_fullname)) or overwrite_bin:
@@ -408,10 +414,11 @@ def main_cfg(config):
         # print(spike_train[:20] / 48000)
         exit(-1)
 
+    transposed = (end_params[0] == "T")
     start_control(
         bin_fullname, sort_method, out_folder, tetrodes_to_use,
         remove_last_chan, phy_out_folder, do_validate, do_parallel,
-        do_plot_waveforms)
+        do_plot_waveforms, transposed=transposed)
 
 
 if __name__ == "__main__":

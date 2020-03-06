@@ -37,7 +37,8 @@ class AxonaBinReader
     const int _samples_per_chunk = 3;
     int _num_channels = 64;
     bool _tranpose = false;
-    bool _split_tp = true;
+    bool _split_tp = false;
+    bool _do_split = false;
 
     int16_t ConvertBytes(char b1, char b2);
 public:
@@ -60,5 +61,8 @@ public:
     }
     inline void SetSplitTranspose(const &tranpose) {
         _split_tp = tranpose;
+    }
+    inline void SetDoSplit(const &split) {
+        _do_split = split;
     }
 };

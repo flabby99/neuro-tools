@@ -276,58 +276,61 @@ bool const AxonaBinReader::Read()
     // Do all the file writing at the end
 
     // Write the channel data out in blocks
-    for (int i = 0; i < _num_channels; ++i)
+    if (_do_split)
     {
-        // TEMP ignore last channel
-        int mod_bit = (i + 1) % 4;
-        if (((mod_bit == 0) && i != 63) || i == 0) {
-        int chan = (i+1) / 4;
-        std::string temp_fname = _dir_name;
-        temp_fname.append("results_klusta2/");
-        std::string mod_str = std::to_string(chan);
-        temp_fname.append(mod_str);
-        temp_fname.append("/recording.dat");
-        std::cout << "Writing split data to " << temp_fname << std::endl;
-        outfile.close();
-        outfile.open(temp_fname, std::ios::out | std::ios::binary);
-        }
-        if (_split_transpose) {
-            if (i % 4 == 0)
-            {
-                std::cout << "Writing channels " << i << std::endl;
-                if (_transpose)
+        for (int i = 0; i < _num_channels; ++i)
+        {
+            // TEMP ignore last channel
+            int mod_bit = (i + 1) % 4;
+            if (((mod_bit == 0) && i != 63) || i == 0) {
+            int chan = (i+1) / 4;
+            std::string temp_fname = _dir_name;
+            temp_fname.append("results_klusta2/");
+            std::string mod_str = std::to_string(chan);
+            temp_fname.append(mod_str);
+            temp_fname.append("/recording.dat");
+            std::cout << "Writing split data to " << temp_fname << std::endl;
+            outfile.close();
+            outfile.open(temp_fname, std::ios::out | std::ios::binary);
+            }
+            if (_split_transpose) {
+                if (i % 4 == 0)
                 {
-                    for (int j = 0; j < total_samples; ++j)
+                    std::cout << "Writing channels " << i << std::endl;
+                    if (_transpose)
                     {
-                        outfile.write((char*)channel_data[j].data(), _sample_bytes * 3);
-                    }
-                }
-                else
-                {
-                    for (int j = 0; j < total_samples; ++j)
-                    {
-                        for (int k = 0; k < 3; ++k)
+                        for (int j = 0; j < total_samples; ++j)
                         {
-                            outfile.write((char*)&channel_data[i + k][j], _sample_bytes);
+                            outfile.write((char*)channel_data[j].data(), _sample_bytes * 3);
+                        }
+                    }
+                    else
+                    {
+                        for (int j = 0; j < total_samples; ++j)
+                        {
+                            for (int k = 0; k < 3; ++k)
+                            {
+                                outfile.write((char*)&channel_data[i + k][j], _sample_bytes);
+                            }
                         }
                     }
                 }
             }
-        }
-        else
-        {
-            if ((i + 1) % 4 != 0)
+            else
             {
-                if (_transpose)
+                if ((i + 1) % 4 != 0)
                 {
-                    for (int j = 0; j < total_samples; ++j)
+                    if (_transpose)
                     {
-                        outfile.write((char*)&channel_data[j][i], _sample_bytes)
+                        for (int j = 0; j < total_samples; ++j)
+                        {
+                            outfile.write((char*)&channel_data[j][i], _sample_bytes)
+                        }
                     }
-                }
-                else
-                {
-                    outfile.write((char*)channel_data[i].data(), sample_size_to_write);
+                    else
+                    {
+                        outfile.write((char*)channel_data[i].data(), sample_size_to_write);
+                    }
                 }
             }
         }
@@ -361,7 +364,7 @@ int main(int argc, char **argv)
 {
     if (argc < 4)
     {
-        std::cout << "Please enter as AxonaBinary location tranpose(T/F) tranpose_split(T/F)" << std::endl;
+        std::cout << "Please enter as AxonaBinary location tranpose(T/F) do_split(T/F) [tranpose_split(T/F)]" << std::endl;
         exit(-1);
     }
     std::string location(argv[1]);
@@ -373,14 +376,19 @@ int main(int argc, char **argv)
     AxonaBinReader axbr{location};
     std::cout << "Converting " << location << std::endl;
     if (argv[3] == "T")
-    {   
+    {
         std::cout << "Will transpose the main outfile" << std::endl;
-        axbr.SetTranspose();
+        axbr.SetTranspose(true);
     }
     if (argv[4] == "T")
-    {   
-        std::cout << "Will transpose the split outfiles" << std::endl;
-        axbr.SetSplitTranspose();
+    {
+        std::cout << "Will split the output files" << std::endl;
+        axbr.SetDoSplit(true)
+        if (argv[5] == "T")
+        {
+            std::cout << "Will transpose the split outfiles" << std::endl;
+            axbr.SetSplitTranspose(true);
+        }
     }
     axbr.Read()
 }
