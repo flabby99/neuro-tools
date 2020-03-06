@@ -166,11 +166,13 @@ bool const AxonaBinReader::Read()
     std::vector<char> buffer(buff_size, 0);
     int row_dim;
     int col_dim;
-    if (_transpose) {
+    if (_transpose)
+    {
         row_dim = total_samples;
         col_dim = _num_channels;
     }
-    else {
+    else
+    {
         row_dim = _num_channels;
         col_dim = total_samples;
     }
@@ -233,7 +235,8 @@ bool const AxonaBinReader::Read()
             int row_sample = compare_val % _num_channels;
             int col_sample = sample_count + (compare_val / _num_channels);
             row_sample = _reverse_map_channels[row_sample];
-            if (_transpose) {
+            if (_transpose)
+            {
                 int temp = col_sample;
                 col_sample = row_sample;
                 row_sample = col_sample
@@ -253,11 +256,13 @@ bool const AxonaBinReader::Read()
     // Do all the file writing at the end
     int sample_size_to_write;
     int iterate_over;
-    if (_transpose) {
+    if (_transpose)
+    {
         sample_size_to_write = _sample_bytes * _num_channels;
         iterate_over = total_samples;
     }
-    else {
+    else
+    {
         sample_size_to_write = _sample_bytes * total_samples;
         iterate_over = _num_channels;
     }
@@ -270,7 +275,6 @@ bool const AxonaBinReader::Read()
 
     // Do all the file writing at the end
 
-    bool transpose = true;
     // Write the channel data out in blocks
     for (int i = 0; i < _num_channels; ++i)
     {
@@ -287,18 +291,45 @@ bool const AxonaBinReader::Read()
         outfile.close();
         outfile.open(temp_fname, std::ios::out | std::ios::binary);
         }
-        if (transpose) {
-        if (i % 4 == 0) {
-            std::cout << "Writing channels " << i << std::endl;
-            for (int j = 0; j < total_samples; ++j) {
-                outfile.write((char*)channel_data[j].data(), _sample_bytes * 3);
+        if (_split_transpose) {
+            if (i % 4 == 0)
+            {
+                std::cout << "Writing channels " << i << std::endl;
+                if (_transpose)
+                {
+                    for (int j = 0; j < total_samples; ++j)
+                    {
+                        outfile.write((char*)channel_data[j].data(), _sample_bytes * 3);
+                    }
+                }
+                else
+                {
+                    for (int j = 0; j < total_samples; ++j)
+                    {
+                        for (int k = 0; k < 3; ++k)
+                        {
+                            outfile.write((char*)&channel_data[i + k][j], _sample_bytes);
+                        }
+                    }
+                }
             }
         }
-        }
-        else {
-        if ((i + 1) % 4 != 0) {
-            outfile.write((char*)channel_data[i].data(), sample_size_to_write);
-        }
+        else
+        {
+            if ((i + 1) % 4 != 0)
+            {
+                if (_transpose)
+                {
+                    for (int j = 0; j < total_samples; ++j)
+                    {
+                        outfile.write((char*)&channel_data[j][i], _sample_bytes)
+                    }
+                }
+                else
+                {
+                    outfile.write((char*)channel_data[i].data(), sample_size_to_write);
+                }
+            }
         }
     }
     outfile.close();
@@ -341,13 +372,14 @@ int main(int argc, char **argv)
     }
     AxonaBinReader axbr{location};
     std::cout << "Converting " << location << std::endl;
-    if (argc >= 3)
-    {   
-        axbr.SetTranspose();
-        axbr.Read();
-    }
-    else
+    if (argc >= 4)
     {
-        axbr.Read();
+        axbr.SetTranspose();
+        axbr.SetSplitTranspose();
     }
+    else if (argc >= 3)
+    {
+        axbr.SetTranspose();
+    }
+    axbr.Read()
 }

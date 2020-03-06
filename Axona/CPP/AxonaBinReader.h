@@ -36,7 +36,8 @@ class AxonaBinReader
     const int _trailer_bytes = 16;
     const int _samples_per_chunk = 3;
     int _num_channels = 64;
-    bool _tranpose = false
+    bool _tranpose = false;
+    bool _split_tp = true;
 
     int16_t ConvertBytes(char b1, char b2);
 public:
@@ -56,5 +57,8 @@ public:
     }
     inline void SetTranspose(const &transpose) {
         _tranpose = transpose;
+    }
+    inline void SetSplitTranspose(const &tranpose) {
+        _split_tp = tranpose;
     }
 };
