@@ -342,12 +342,12 @@ int main(int argc, char **argv)
     AxonaBinReader axbr{location};
     std::cout << "Converting " << location << std::endl;
     if (argc >= 3)
-    {
+    {   
+        axbr.SetTranspose();
         axbr.Read();
-        //axbr.ParseReferences();
     }
     else
     {
-        axbr.ToInp();
+        axbr.Read();
     }
 }
