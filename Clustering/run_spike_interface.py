@@ -203,6 +203,7 @@ def run(location, sorter="klusta", output_folder="result",
         os.path.basename(location)))
     in_dir = os.path.dirname(location)
     o_dir = os.path.join(in_dir, output_folder)
+    print("Writing result to {}".format(o_dir))
     probe_loc = os.path.join(o_dir, "channel_map.prb")
 
     # Load the recording data
@@ -348,19 +349,29 @@ def main_cfg(config):
     fname = config.get("path", "set_fname")
     sort_method = config.get("sorting", "sort_method")
     tetrodes_to_use = json.loads(config.get("sorting", "tetrodes_to_sort"))
-    remove_last_chan = not config.getboolean("sorting", "last_chan_is_eeg")
+    remove_last_chan = config.getboolean("sorting", "last_chan_is_eeg")
     do_validate = config.getboolean("sorting", "do_validation")
-    do_plot_waveforms = config.getboolean("sorting", "plot_waveforms")
+    do_plot_waveforms = config.getboolean("sorting", "do_plot_waveforms")
+
+    if out_dir == "default":
+        out_folder = "results_" + sort_method
+        phy_out_folder = "phy_" + sort_method
+    else:
+        out_folder = out_dir
+        phy_out_folder = out_folder + "_phy"
 
     # Note in AxonaBinary the format is
     # AxonaBinary loc tranpose_full transpose_split
     if sort_method == "klusta":
         do_parallel = True
         # TODO test if this works well or write another
-        end_params = ["T", "F", "T"]
+        end_params = ["F", "T", "T", out_folder]
     elif sort_method == "spykingcircus":
         do_parallel = False
-        end_params = ["F", "F", "F"]
+        end_params = ["F", "F", "F", out_folder]
+    else:
+        raise ValueError(
+            "Currently unsupported method {}".format(sort_method))
 
     if fname == "default":
         set_files = get_all_files_in_dir(
@@ -369,6 +380,7 @@ def main_cfg(config):
             raise ValueError(
                 "Found more than one set file in folder: {}".format(
                     len(set_files)))
+        fname = os.path.basename(set_files[0])
         set_fullname = set_files[0]
     else:
         set_fullname = os.path.join(in_dir, fname)
@@ -383,13 +395,6 @@ def main_cfg(config):
         subprocess.run(run_params)
     else:
         print("Reading binary info from {}".format(bin_fullname))
-
-    if out_dir == "default":
-        out_folder = "results_" + sort_method
-        phy_out_folder = "phy_" + sort_method
-    else:
-        out_folder = "res"
-        phy_out_folder = "phy"
 
     # Actual execution here
     if check_params_only:
@@ -424,5 +429,6 @@ def main_cfg(config):
 if __name__ == "__main__":
     here = os.path.dirname(os.path.abspath(__file__))
     config_loc = os.path.join(here, "configs", "config.cfg")
-    config = ConfigParser(config_loc)
+    config = ConfigParser()
+    config.read(config_loc)
     main_cfg(config)

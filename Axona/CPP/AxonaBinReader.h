@@ -8,6 +8,7 @@ class AxonaBinReader
     std::string _out_fname;
     std::string _out_inpname;
     std::string _dir_name;
+    std::string _out_split_dir;
 
     int _remap_channels[64] = {
         32, 33, 34, 35, 36, 37, 38, 39,
@@ -36,7 +37,7 @@ class AxonaBinReader
     const int _trailer_bytes = 16;
     const int _samples_per_chunk = 3;
     int _num_channels = 64;
-    bool _tranpose = false;
+    bool _transpose = false;
     bool _split_tp = false;
     bool _do_split = false;
 
@@ -56,13 +57,16 @@ public:
     inline void SetBinFname(const std::string& name) {
         _bin_fname = name;
     }
-    inline void SetTranspose(const &transpose) {
-        _tranpose = transpose;
+    inline void SetTranspose(const bool& transpose) {
+        _transpose = transpose;
     }
-    inline void SetSplitTranspose(const &tranpose) {
+    inline void SetSplitTranspose(const bool& tranpose) {
         _split_tp = tranpose;
     }
-    inline void SetDoSplit(const &split) {
+    inline void SetDoSplit(const bool& split) {
         _do_split = split;
+    }
+    inline void SetSplitDir(const std::string& name) {
+      _out_split_dir = name;
     }
 };
