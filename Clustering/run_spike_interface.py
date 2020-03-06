@@ -1,30 +1,43 @@
+import os
+import subprocess
+import json
+from time import time
+from configparser import ConfigParser
+
 import spikeinterface.extractors as se
 import spikeinterface.toolkit as st
 import spikeinterface.sorters as ss
 import spikeinterface.comparison as sc
 import spikeinterface.widgets as sw
-
-import os
-
 import matplotlib.pyplot as plt
-import subprocess
-
 import numpy as np
 
 from channel_map import write_prb_file
+from path_utils import get_all_files_in_dir
 
-from time import time
-import subprocess
 
 def list_sorters():
     """Print a list of spikeinterface sorters."""
     print('Available sorters', ss.available_sorters())
     print('Installed sorters', ss.installed_sorter_list)
 
+
+def load_sorting(in_dir, extract_method="phy"):
+    sorting_curated = None
+    if extract_method == "phy":
+        sorting_curated = se.PhySortingExtractor(in_dir)
+    return sorting_curated
+
+
+def make_folder_structure(main_dir, out_folder="results_klusta"):
+    for i in range(16):
+        os.makedirs(os.path.join(main_dir, out_folder, str(i)), exist_ok=True)
+
+
 def custom_default_params_list(sorter_name, check=False):
     """
     Get a dictionary of params for a sorter.
-    
+
     if check if True just return default.
     """
     default_params = ss.get_default_params(sorter_name)
@@ -47,135 +60,6 @@ def custom_default_params_list(sorter_name, check=False):
         default_params["filter"] = False
     return default_params
 
-def run(location, sorter="klusta", output_folder="result", 
-        verbose=False, view=False, phy_out_folder="phy",
-        remove_last_chan=False, do_validate=False, 
-        do_parallel=False, **sorting_kwargs):
-    """
-    Run spike interface on a _shuff.bin file.
-
-    if verbose is True prints more information.
-
-    """
-    # Do setup
-    o_start = time()
-    print("Starting the sorting pipeline from bin data on {}".format(
-        os.path.basename(location)))
-    in_dir = os.path.dirname(location)
-    o_dir = os.path.join(in_dir, output_folder)
-    probe_loc = os.path.join(o_dir, "channel_map.prb")
-    
-    # Load the recording data
-    start_time = time()
-    recording = se.BinDatRecordingExtractor(
-        file_path=location, offset=16, dtype=np.int16,
-        sampling_frequency=48000, numchan=64, time_axis=1)
-    recording_prb = recording.load_probe_file(probe_loc)
-    get_info(recording, probe_loc)
-
-    # Plot a trace of the raw data
-    t_len = 10
-    o_loc = os.path.join(o_dir, "trace_" + str(t_len) + "s.png")
-    print("Plotting a {}s trace of the raw data to {}".format(
-        t_len, o_loc))
-    w_ts = sw.plot_timeseries(recording_prb, trange=[0, t_len])
-    plt.savefig(o_loc, dpi=200)
-
-    # Do the pre-processing pipeline
-    print("Running preprocessing")
-    recording_f = st.preprocessing.bandpass_filter(
-        recording_prb, freq_min=300, freq_max=6000)
-    bad_chans = [
-            i for i in range(3, 64, 4) 
-            if i in recording_f.get_channel_ids()]
-    print("Removing {}".format(bad_chans))
-    recording_rm_noise = st.preprocessing.remove_bad_channels(
-        recording_f, bad_channel_ids=bad_chans)
-    print('Channel ids after preprocess:',
-          recording_rm_noise.get_channel_ids())
-    print('Channel groups after preprocess:',
-          recording_rm_noise.get_channel_groups())
-    preproc_recording = recording_rm_noise
-
-    # Get sorting params and run the sorting
-    params = custom_default_params_list(sorter, check=False)
-    for k, v in sorting_kwargs.items():
-        params[k] = v
-    print("Loaded and preprocessed data in {:.2f}s".format(time() - start_time))
-    start_time = time()
-    print("Running {} with parameters {}".format(
-        sorter, params))
-    sorted_s = ss.run_sorter(
-        sorter, preproc_recording, 
-        grouping_property="group", output_folder=o_dir,
-        parallel=do_parallel, verbose=verbose, **params)
-    print("Sorted in {:.2f}mins".format((time() - start_time)/60.0))
-    
-    # Some validation statistics
-    if do_validate:
-        print("Spike sorting completed, running validation")
-        start_time = time()
-        sorting_curated_snr = st.curation.threshold_snr(
-            sorted_s, recording, threshold=5, threshold_sign='less')
-        
-        # Extra stats that can be printed but takes time
-        # snrs = st.validation.compute_snrs(sorted_s, preproc_recording)
-        # isi_violations = st.validation.compute_isi_violations(sorted_s)
-        # isolations = st.validation.compute_isolation_distances(
-        #     sorted_s, preproc_recording)
-
-        # print('SNR', snrs)
-        # print('ISI violation ratios', isi_violations)
-        # print('Isolation distances', isolations)
-
-        # Do automatic curation based on the snr
-        # snrs_above = st.validation.compute_snrs(
-        #     sorting_curated_snr, preproc_recording)
-        # print('Curated SNR', snrs_above)
-
-        print("Validated in {:.2f}mins".format((time() - start_time)/60.0))
-    else:
-        sorting_curated_snr = sorted_s
-
-    # Export the result to phy for manual curation
-    start_time = time()
-    phy_out = os.path.join(in_dir, phy_out_folder)
-    print("Exporting to phy")
-    st.postprocessing.export_to_phy(
-        recording, sorting_curated_snr,
-        output_folder=phy_out, grouping_property='group',
-        verbose=verbose, ms_before=0.2, ms_after=0.8, dtype=None,
-        max_channels_per_template=8, max_spikes_for_pca=5000)
-    print("Exported in {:.2f}s".format(time() - start_time))
-    pipeline_time = (time() - o_start) / 60.0
-    print("Whole pipeline took {:.2f}mins".format(pipeline_time))
-    
-    do_plot = False
-    print("Showing some extra information")
-    start_time = time()
-    if do_plot:
-        get_sort_info(sorting_curated_snr, preproc_recording, o_dir)
-    else:
-        unit_ids = sorting_curated_snr.get_unit_ids()
-        print("Found", len(unit_ids), 'units')
-        plot_all_forms(sorting_curated_snr, preproc_recording, o_dir)
-    print(
-        "Summarised recording in {:.2f}mins".format((time() - start_time)/60.0))
-
-    phy_final = os.path.join(phy_out, "params.py")
-    if view:
-        subprocess.run(["phy", "template-gui", phy_final])
-    else:
-        print(
-            "To view the data in phy, run: phy template-gui {}".format(
-            phy_final))
-
-    # If you need to process the data further!
-    # sorting_phy_curated = se.PhySortingExtractor("phy")
-
-    # Here you could do some comparisons with other things
-    # See the ending part of 
-    # https://github.com/SpikeInterface/spiketutorials/blob/master/Spike_sorting_workshop_2019/SpikeInterface_Tutorial.ipynb
 
 def get_sort_info(sorting, recording, out_loc):
     unit_ids = sorting.get_unit_ids()
@@ -231,6 +115,7 @@ def get_sort_info(sorting, recording, out_loc):
         o_loc))
     fig.savefig(o_loc, dpi=200)
 
+
 def plot_all_forms(sorting, recording, out_loc):
     wf_by_group = st.postprocessing.get_unit_waveforms(
         recording, sorting, ms_before=0.2, ms_after=0.8,
@@ -264,6 +149,7 @@ def plot_all_forms(sorting, recording, out_loc):
         fig.savefig(o_loc, dpi=200)
         plt.close("all")
 
+
 def get_info(recording, prb_fname="channel_map.prb"):
     fs = recording.get_sampling_frequency()
     num_chan = recording.get_num_channels()
@@ -273,10 +159,11 @@ def get_info(recording, prb_fname="channel_map.prb"):
     print('Sampling frequency:', fs)
     print('Number of channels:', num_chan)
     print(
-        'Channels after loading the probe file:', 
+        'Channels after loading the probe file:',
         recording_prb.get_channel_ids())
     print('Channel groups after loading the probe file:',
-        recording_prb.get_channel_groups())
+          recording_prb.get_channel_groups())
+
 
 def compare_sorters(sort1, sort2):
     comp_KL_MS4 = sc.compare_two_sorters(
@@ -298,35 +185,169 @@ def compare_sorters(sort1, sort2):
     w_multi = sw.plot_multicomp_graph(comp_multi)
     plt.show()
 
-def main(
-    location, sort_method, out_folder, tetrodes_to_use, 
-    remove_last_chan, phy_out_folder, do_validate, do_parallel):
+
+def run(location, sorter="klusta", output_folder="result",
+        verbose=False, view=False, phy_out_folder="phy",
+        remove_last_chan=False, do_validate=False,
+        do_parallel=False, do_plot_waveforms=True,
+        **sorting_kwargs):
+    """
+    Run spike interface on a _shuff.bin file.
+
+    if verbose is True prints more information.
+
+    """
+    # Do setup
+    o_start = time()
+    print("Starting the sorting pipeline from bin data on {}".format(
+        os.path.basename(location)))
+    in_dir = os.path.dirname(location)
+    o_dir = os.path.join(in_dir, output_folder)
+    probe_loc = os.path.join(o_dir, "channel_map.prb")
+
+    # Load the recording data
+    start_time = time()
+    recording = se.BinDatRecordingExtractor(
+        file_path=location, offset=16, dtype=np.int16,
+        sampling_frequency=48000, numchan=64, time_axis=1)
+    recording_prb = recording.load_probe_file(probe_loc)
+    get_info(recording, probe_loc)
+
+    # Plot a trace of the raw data
+    t_len = 10
+    o_loc = os.path.join(o_dir, "trace_" + str(t_len) + "s.png")
+    print("Plotting a {}s trace of the raw data to {}".format(
+        t_len, o_loc))
+    w_ts = sw.plot_timeseries(recording_prb, trange=[0, t_len])
+    plt.savefig(o_loc, dpi=200)
+
+    # Do the pre-processing pipeline
+    print("Running preprocessing")
+    recording_f = st.preprocessing.bandpass_filter(
+        recording_prb, freq_min=300, freq_max=6000)
+    bad_chans = [
+        i for i in range(3, 64, 4)
+        if i in recording_f.get_channel_ids()]
+    print("Removing {}".format(bad_chans))
+    recording_rm_noise = st.preprocessing.remove_bad_channels(
+        recording_f, bad_channel_ids=bad_chans)
+    print('Channel ids after preprocess:',
+          recording_rm_noise.get_channel_ids())
+    print('Channel groups after preprocess:',
+          recording_rm_noise.get_channel_groups())
+    preproc_recording = recording_rm_noise
+
+    # Get sorting params and run the sorting
+    params = custom_default_params_list(sorter, check=False)
+    for k, v in sorting_kwargs.items():
+        params[k] = v
+    print("Loaded and preprocessed data in {:.2f}s".format(
+        time() - start_time))
+    start_time = time()
+    print("Running {} with parameters {}".format(
+        sorter, params))
+    sorted_s = ss.run_sorter(
+        sorter, preproc_recording,
+        grouping_property="group", output_folder=o_dir,
+        parallel=do_parallel, verbose=verbose, **params)
+    print("Sorted in {:.2f}mins".format((time() - start_time) / 60.0))
+
+    # Some validation statistics
+    if do_validate:
+        print("Spike sorting completed, running validation")
+        start_time = time()
+        sorting_curated_snr = st.curation.threshold_snr(
+            sorted_s, recording, threshold=5, threshold_sign='less')
+
+        # Extra stats that can be printed but takes time
+        # snrs = st.validation.compute_snrs(sorted_s, preproc_recording)
+        # isi_violations = st.validation.compute_isi_violations(sorted_s)
+        # isolations = st.validation.compute_isolation_distances(
+        #     sorted_s, preproc_recording)
+
+        # print('SNR', snrs)
+        # print('ISI violation ratios', isi_violations)
+        # print('Isolation distances', isolations)
+
+        # Do automatic curation based on the snr
+        # snrs_above = st.validation.compute_snrs(
+        #     sorting_curated_snr, preproc_recording)
+        # print('Curated SNR', snrs_above)
+
+        print("Validated in {:.2f}mins".format((time() - start_time) / 60.0))
+    else:
+        sorting_curated_snr = sorted_s
+
+    # Export the result to phy for manual curation
+    start_time = time()
+    phy_out = os.path.join(in_dir, phy_out_folder)
+    print("Exporting to phy")
+    st.postprocessing.export_to_phy(
+        recording, sorting_curated_snr,
+        output_folder=phy_out, grouping_property='group',
+        verbose=verbose, ms_before=0.2, ms_after=0.8, dtype=None,
+        max_channels_per_template=8, max_spikes_for_pca=5000)
+    print("Exported in {:.2f}s".format(time() - start_time))
+    pipeline_time = (time() - o_start) / 60.0
+    print("Whole pipeline took {:.2f}mins".format(pipeline_time))
+
+    do_plot = False
+    print("Showing some extra information")
+    start_time = time()
+    if do_plot:
+        get_sort_info(sorting_curated_snr, preproc_recording, o_dir)
+    else:
+        unit_ids = sorting_curated_snr.get_unit_ids()
+        print("Found", len(unit_ids), 'units')
+        plot_all_forms(sorting_curated_snr, preproc_recording, o_dir)
+    print(
+        "Summarised recording in {:.2f}mins".format((time() - start_time) / 60.0))
+
+    phy_final = os.path.join(phy_out, "params.py")
+    if view:
+        subprocess.run(["phy", "template-gui", phy_final])
+    else:
+        print(
+            "To view the data in phy, run: phy template-gui {}".format(
+                phy_final))
+
+    # If you need to process the data further!
+    # sorting_phy_curated = se.PhySortingExtractor("phy")
+
+    # Here you could do some comparisons with other things
+    # See the ending part of
+    # https://github.com/SpikeInterface/spiketutorials/blob/master/Spike_sorting_workshop_2019/SpikeInterface_Tutorial.ipynb
+
+
+def start_control(
+        location, sort_method, out_folder, tetrodes_to_use,
+        remove_last_chan, phy_out_folder, do_validate, do_parallel,
+        do_plot_waveforms):
     print("Starting to run spike interface!")
     in_dir = os.path.dirname(location)
     out_loc = os.path.join(in_dir, out_folder, "channel_map.prb")
     os.makedirs(os.path.dirname(out_loc), exist_ok=True)
 
     write_prb_file(tetrodes_to_use=tetrodes_to_use, out_loc=out_loc)
-    # TODO can actually set channel gains on a recording
     run(location, sort_method, output_folder=out_folder, verbose=False,
         remove_last_chan=remove_last_chan, phy_out_folder=phy_out_folder,
-        view=False, do_validate=do_validate, do_parallel=do_parallel)
+        view=False, do_validate=do_validate, do_parallel=do_parallel,
+        do_plot_waveforms=do_plot_waveforms)
 
-def load_sorting(in_dir, extract_method="phy"):
-    sorting_curated = None
-    if extract_method == "phy":
-        sorting_curated = se.PhySortingExtractor(in_dir)
-    return sorting_curated
 
-def make_folder_structure(main_dir, out_folder="results_klusta"):
-    for i in range(16):
-        os.makedirs(os.path.join(main_dir, out_folder, str(i)), exist_ok=True)
+def main_cfg(config):
+    check_params_only = config.getboolean("setup", "check_params_only")
+    load_sort = config.getboolean("setup", "load_sorting")
+    overwrite_bin = config.getboolean("setup", "overwrite_bin")
+    in_dir = config.get("path", "in_dir")
+    out_dir = config.get("path", "out_foldername")
+    fname = config.get("path", "set_fname")
+    sort_method = config.get("sorting", "sort_method")
+    tetrodes_to_use = json.loads(config.get("sorting", "tetrodes_to_sort"))
+    remove_last_chan = not config.getboolean("sorting", "last_chan_is_eeg")
+    do_validate = config.getboolean("sorting", "do_validation")
+    do_plot_waveforms = config.getboolean("sorting", "plot_waveforms")
 
-if __name__ == "__main__":
-    check_params_only = False
-    load_sort = True
-    
-    sort_method = "klusta"
     if sort_method == "klusta":
         do_parallel = True
     elif sort_method == "spykingcircus":
@@ -334,39 +355,41 @@ if __name__ == "__main__":
     elif sort_method == "herdingspikes":
         do_parallel = True
 
-    # in_dir = r"G:\Ham\A10_CAR-SA2\CAR-SA2_20200110"
-    in_dir = r"G:\Ham\A10_CAR-SA2\CAR-SA2_20200109_PreBox"
-    make_folder_structure(in_dir, "results_klusta2")
-    fname = "CAR-SA2_2020-01-10.set"
-    overwrite = False
-    set_fullname = os.path.join(in_dir, fname)
+    if fname == "default":
+        set_files = get_all_files_in_dir(
+            in_dir, ext="set")
+        if len(set_files) > 1:
+            raise ValueError(
+                "Found more than one set file in folder: {}".format(
+                    len(set_files)))
+        set_fullname = set_files[0]
+    else:
+        set_fullname = os.path.join(in_dir, fname)
+
+    make_folder_structure(in_dir, out_dir)
     bin_fname = fname[:-4] + "_shuff.bin"
     bin_fullname = os.path.join(in_dir, bin_fname)
-    if (not os.path.exists(bin_fullname)) or overwrite:
+    if (not os.path.exists(bin_fullname)) or overwrite_bin:
         print("Writing binary info to {}".format(bin_fullname))
         subprocess.run(["AxonaBinary", set_fullname, "read"])
-
     else:
         print("Reading binary info from {}".format(bin_fullname))
-    default_out_names = True
-    
-    if default_out_names:
+
+    if out_dir == "default":
         out_folder = "results_" + sort_method
         phy_out_folder = "phy_" + sort_method
     else:
         out_folder = "res"
         phy_out_folder = "phy"
-    
-    tetrodes_to_use = [] # [] uses all 16
-    remove_last_chan = True # Set to true for last chan on tetrode = eeg
-    do_validate = True
-    
+
     # Actual execution here
     if check_params_only:
+        print("Only checking parameters")
         print(custom_default_params_list(sort_method, check=False))
         exit(-1)
     if load_sort:
         location = os.path.join(in_dir, phy_out_folder)
+        print("loading sorting information from {}".format(location))
         sorting = load_sorting(location)
         # recording = se.BinDatRecordingExtractor(
         #     file_path=bin_fullname, offset=16, dtype=np.int16,
@@ -375,13 +398,21 @@ if __name__ == "__main__":
         recording = se.PhyRecordingExtractor(recording_name)
         recording_prb = recording.load_probe_file(
             os.path.join(in_dir, out_folder, "channel_map.prb"))
-        plot_all_forms(sorting, recording_prb, os.path.join(in_dir, out_folder))
+        plot_all_forms(sorting, recording_prb,
+                       os.path.join(in_dir, out_folder))
         # spike_train = sorting.get_unit_spike_train(unit_id=35)
         # print(len(spike_train))
         # print(spike_train[:20] / 48000)
-        # print(spike_train[-20:] / 48000)
         exit(-1)
 
-    main(
+    start_control(
         bin_fullname, sort_method, out_folder, tetrodes_to_use,
-        remove_last_chan, phy_out_folder, do_validate, do_parallel)
+        remove_last_chan, phy_out_folder, do_validate, do_parallel,
+        do_plot_waveforms)
+
+
+if __name__ == "__main__":
+    here = os.path.dirname(os.path.abspath(__file__))
+    config_loc = os.path.join(here, "configs", "config.cfg")
+    config = ConfigParser(config_loc)
+    main_cfg(config)
