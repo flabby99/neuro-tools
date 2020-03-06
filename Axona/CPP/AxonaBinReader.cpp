@@ -239,29 +239,30 @@ bool const AxonaBinReader::Read()
 	// Write the channel data out
 	for (int i = 0; i < _num_channels; ++i)
 	{
-		outfile.write((char *)channel_data[i].data(), sample_size_to_write);
+		outfile.write((char*)channel_data[i].data(), sample_size_to_write);
 	}
 
   // Do all the file writing at the end
 
+  bool transpose = true;
   // Write the channel data out in blocks
-  sample_size_to_write = _sample_bytes * (total_samples / 64);
   for (int i = 0; i < _num_channels; ++i)
   {
     // TEMP ignore last channel
-    int mod_bit = i % 3;
-    if (mod_bit == 0 && i != 63) {
+    int mod_bit = (i + 1) % 4;
+    if (((mod_bit == 0) && i != 63) || i == 0) {
+      int chan = (i+1) / 4;
       std::string temp_fname = _dir_name;
       temp_fname.append("results_klusta2/");
-      int chan = i / 4;
       std::string mod_str = std::to_string(chan);
       temp_fname.append(mod_str);
       temp_fname.append("/recording.dat");
-      // TODO need to change this
       std::cout << "Writing split data to " << temp_fname << std::endl;
+      outfile.close();
       outfile.open(temp_fname, std::ios::out | std::ios::binary);
     }
-    if (mod_bit != 0 || i == 0) {
+    if ((i+1) % 4 != 0) {
+      std::cout << "Writing samples " << i << std::endl;
       outfile.write((char*)channel_data[i].data(), sample_size_to_write);
     }
   }

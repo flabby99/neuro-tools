@@ -318,6 +318,10 @@ def load_sorting(in_dir, extract_method="phy"):
         sorting_curated = se.PhySortingExtractor(in_dir)
     return sorting_curated
 
+def make_folder_structure(main_dir, out_folder="results_klusta"):
+    for i in range(16):
+        os.makedirs(os.path.join(main_dir, out_folder, str(i)), exist_ok=True)
+
 if __name__ == "__main__":
     check_params_only = False
     load_sort = True
@@ -330,7 +334,9 @@ if __name__ == "__main__":
     elif sort_method == "herdingspikes":
         do_parallel = True
 
-    in_dir = r"G:\Ham\A10_CAR-SA2\CAR-SA2_20200110"
+    # in_dir = r"G:\Ham\A10_CAR-SA2\CAR-SA2_20200110"
+    in_dir = r"G:\Ham\A10_CAR-SA2\CAR-SA2_20200109_PreBox"
+    make_folder_structure(in_dir, "results_klusta2")
     fname = "CAR-SA2_2020-01-10.set"
     overwrite = False
     set_fullname = os.path.join(in_dir, fname)
