@@ -22,7 +22,7 @@ AxonaBinReader::AxonaBinReader(std::string name)
     Init(name);
 }
 
-int* AxonaBinReader::ParseReferences()
+int *AxonaBinReader::ParseReferences()
 {
     std::ifstream set_file(_set_fname);
     std::string line;
@@ -65,7 +65,8 @@ int* AxonaBinReader::ParseReferences()
     for (int i = 0; i < 64; ++i)
     {
         int ch = refs[i];
-        if (ch > 7) {
+        if (ch > 7)
+        {
             std::cout << "Error! Reference channel out of range -" << ch << std::endl;
             exit(-1);
         }
@@ -270,14 +271,14 @@ bool const AxonaBinReader::Read()
     // Write the channel data out
     for (int i = 0; i < iterate_over; ++i)
     {
-        outfile.write((char*)channel_data[i].data(), sample_size_to_write);
+        outfile.write((char *)channel_data[i].data(), sample_size_to_write);
     }
 
     // Do all the file writing at the end
 
     // Write the channel data out in blocks
     if (_do_split)
-    {   
+    {
         std::vector<int16_t> temp_holder;
         if (_split_tp)
         {
@@ -287,20 +288,21 @@ bool const AxonaBinReader::Read()
         {
             // TEMP ignore last channel
             int mod_bit = (i + 1) % 4;
-            if (((mod_bit == 0) && i != 63) || i == 0) 
+            if (((mod_bit == 0) && i != 63) || i == 0)
             {
-              int chan = (i+1) / 4;
-              std::string temp_fname = _dir_name;
-              temp_fname.append(_out_split_dir);
-              temp_fname.append("\\");
-              std::string mod_str = std::to_string(chan);
-              temp_fname.append(mod_str);
-              temp_fname.append("\\recording.dat");
-              std::cout << "Writing split data to " << temp_fname << std::endl;
-              outfile.close();
-              outfile.open(temp_fname, std::ios::out | std::ios::binary);
+                int chan = (i + 1) / 4;
+                std::string temp_fname = _dir_name;
+                temp_fname.append(_out_split_dir);
+                temp_fname.append("\\");
+                std::string mod_str = std::to_string(chan);
+                temp_fname.append(mod_str);
+                temp_fname.append("\\recording.dat");
+                std::cout << "Writing split data to " << temp_fname << std::endl;
+                outfile.close();
+                outfile.open(temp_fname, std::ios::out | std::ios::binary);
             }
-            if (_split_tp) {
+            if (_split_tp)
+            {
                 if (i % 4 == 0)
                 {
                     if (_transpose)
@@ -309,10 +311,10 @@ bool const AxonaBinReader::Read()
                         {
                             for (int k = 0; k < 3; ++k)
                             {
-                                temp_holder.push_back(channel_data[j][i+k]);
+                                temp_holder.push_back(channel_data[j][i + k]);
                             }
                         }
-                        outfile.write((char*)temp_holder.data(), _sample_bytes * total_samples * 3);
+                        outfile.write((char *)temp_holder.data(), _sample_bytes * total_samples * 3);
                         temp_holder.clear();
                     }
                     else
@@ -321,10 +323,10 @@ bool const AxonaBinReader::Read()
                         {
                             for (int k = 0; k < 3; ++k)
                             {
-                                temp_holder.push_back(channel_data[i+k][j]);
+                                temp_holder.push_back(channel_data[i + k][j]);
                             }
                         }
-                        outfile.write((char*)temp_holder.data(), _sample_bytes* total_samples * 3);
+                        outfile.write((char *)temp_holder.data(), _sample_bytes * total_samples * 3);
                         temp_holder.clear();
                     }
                 }
@@ -337,12 +339,12 @@ bool const AxonaBinReader::Read()
                     {
                         for (int j = 0; j < total_samples; ++j)
                         {
-                            outfile.write((char*)&channel_data[j][i], _sample_bytes);
+                            outfile.write((char *)&channel_data[j][i], _sample_bytes);
                         }
                     }
                     else
                     {
-                        outfile.write((char*)channel_data[i].data(), sample_size_to_write);
+                        outfile.write((char *)channel_data[i].data(), sample_size_to_write);
                     }
                 }
             }

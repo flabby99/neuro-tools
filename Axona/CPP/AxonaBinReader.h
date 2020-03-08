@@ -18,7 +18,7 @@ class AxonaBinReader
         48, 49, 50, 51, 52, 53, 54, 55,
         16, 17, 18, 19, 20, 21, 22, 23,
         56, 57, 58, 59, 60, 61, 62, 63,
-        24, 25, 26, 27, 28, 29, 30, 31 };
+        24, 25, 26, 27, 28, 29, 30, 31};
 
     int _reverse_map_channels[64] = {
         8, 9, 10, 11, 12, 13, 14, 15,
@@ -28,7 +28,7 @@ class AxonaBinReader
         0, 1, 2, 3, 4, 5, 6, 7,
         16, 17, 18, 19, 20, 21, 22, 23,
         32, 33, 34, 35, 36, 37, 38, 39,
-        48, 49, 50, 51, 52, 53, 54, 55 };
+        48, 49, 50, 51, 52, 53, 54, 55};
 
     const int _sample_bytes = 2;
     const int _channel_bytes = 128;
@@ -42,31 +42,38 @@ class AxonaBinReader
     bool _do_split = false;
 
     int16_t ConvertBytes(char b1, char b2);
+
 public:
     AxonaBinReader();
     AxonaBinReader(std::string name);
     void Init(std::string name);
     bool const ToInp();
     bool const Read();
-    int* ParseReferences();
-    inline const std::string& GetSetFname() { return _set_fname; }
-    inline void SetSetFname(const std::string& name) {
+    int *ParseReferences();
+    inline const std::string &GetSetFname() { return _set_fname; }
+    inline void SetSetFname(const std::string &name)
+    {
         _set_fname = name;
     }
-    inline const std::string& GetBinFname() { return _bin_fname; }
-    inline void SetBinFname(const std::string& name) {
+    inline const std::string &GetBinFname() { return _bin_fname; }
+    inline void SetBinFname(const std::string &name)
+    {
         _bin_fname = name;
     }
-    inline void SetTranspose(const bool& transpose) {
+    inline void SetTranspose(const bool &transpose)
+    {
         _transpose = transpose;
     }
-    inline void SetSplitTranspose(const bool& tranpose) {
+    inline void SetSplitTranspose(const bool &tranpose)
+    {
         _split_tp = tranpose;
     }
-    inline void SetDoSplit(const bool& split) {
+    inline void SetDoSplit(const bool &split)
+    {
         _do_split = split;
     }
-    inline void SetSplitDir(const std::string& name) {
-      _out_split_dir = name;
+    inline void SetSplitDir(const std::string &name)
+    {
+        _out_split_dir = name;
     }
 };
