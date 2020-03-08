@@ -277,7 +277,12 @@ bool const AxonaBinReader::Read()
 
     // Write the channel data out in blocks
     if (_do_split)
-    {
+    {   
+        std::vector<int16_t> temp_holder;
+        if (_split_tp)
+        {
+            temp_holder.reserve(total_samples * 3);
+        }
         for (int i = 0; i < _num_channels; ++i)
         {
             // TEMP ignore last channel
@@ -287,10 +292,10 @@ bool const AxonaBinReader::Read()
               int chan = (i+1) / 4;
               std::string temp_fname = _dir_name;
               temp_fname.append(_out_split_dir);
-              temp_fname.append("/");
+              temp_fname.append("\\");
               std::string mod_str = std::to_string(chan);
               temp_fname.append(mod_str);
-              temp_fname.append("/recording.dat");
+              temp_fname.append("\\recording.dat");
               std::cout << "Writing split data to " << temp_fname << std::endl;
               outfile.close();
               outfile.open(temp_fname, std::ios::out | std::ios::binary);
@@ -302,8 +307,13 @@ bool const AxonaBinReader::Read()
                     {
                         for (int j = 0; j < total_samples; ++j)
                         {
-                            outfile.write((char*)channel_data[j].data(), _sample_bytes * 3);
+                            for (int k = 0; k < 3; ++k)
+                            {
+                                temp_holder.push_back(channel_data[j][i+k]);
+                            }
                         }
+                        outfile.write((char*)temp_holder.data(), _sample_bytes * total_samples * 3);
+                        temp_holder.clear();
                     }
                     else
                     {
@@ -311,9 +321,11 @@ bool const AxonaBinReader::Read()
                         {
                             for (int k = 0; k < 3; ++k)
                             {
-                                outfile.write((char*)&channel_data[i + k][j], _sample_bytes);
+                                temp_holder.push_back(channel_data[i+k][j]);
                             }
                         }
+                        outfile.write((char*)temp_holder.data(), _sample_bytes* total_samples * 3);
+                        temp_holder.clear();
                     }
                 }
             }
@@ -365,7 +377,7 @@ int main(int argc, char **argv)
 {
     if (argc < 4)
     {
-        std::cout << "Please enter as AxonaBinary location tranpose(T/F) do_split(T/F) [tranpose_split(T/F) out_split_loc]" << std::endl;
+        std::cout << "Please enter as AxonaBinary setfile_location tranpose(T/F) do_split(T/F) [tranpose_split(T/F) out_split_loc]" << std::endl;
         exit(-1);
     }
     std::string location(argv[1]);

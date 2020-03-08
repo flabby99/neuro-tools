@@ -31,10 +31,14 @@ inline bool file_exists(const std::string& name) {
 
 inline std::string dir_from_file(const std::string& filename) {
   std::string directory;
-  const size_t last_slash_idx = filename.rfind('/');
+  size_t last_slash_idx = filename.rfind('/');
+  if (std::string::npos == last_slash_idx)
+  {
+      last_slash_idx = filename.rfind('\\');
+  }
   if (std::string::npos != last_slash_idx)
   {
-    directory = filename.substr(0, last_slash_idx+1);
+      directory = filename.substr(0, last_slash_idx+1);
   }
   return directory;
 }
