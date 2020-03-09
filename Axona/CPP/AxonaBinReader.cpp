@@ -28,8 +28,8 @@ int *AxonaBinReader::ParseReferences()
     std::string line;
     std::string ref_match = "b_in_ch_";
     std::string base_match = "ref_";
-    int refs[64];
-    int base_refs[8];
+    int refs[64] = { 0 };
+    int base_refs[8] = { 0 };
     while (std::getline(set_file, line))
     {
         std::cout << line << std::endl;
@@ -165,8 +165,8 @@ bool const AxonaBinReader::Read()
     // Set up buffers and storage vectors
     const int buff_size = _chunksize;
     std::vector<char> buffer(buff_size, 0);
-    int row_dim;
-    int col_dim;
+    long long row_dim;
+    long long col_dim;
     if (_transpose)
     {
         row_dim = total_samples;
@@ -184,7 +184,7 @@ bool const AxonaBinReader::Read()
     // Open the file
     std::ifstream infile;
     infile.open(_bin_fname, std::ios::binary | std::ios::in);
-    int sample_count = 0;
+    long long sample_count = 0;
 
     // Setup the header and start the clock
     auto start = std::chrono::high_resolution_clock::now();
@@ -233,14 +233,14 @@ bool const AxonaBinReader::Read()
         {
             int compare_val = (i - _header_bytes) / 2;
 
-            int row_sample = compare_val % _num_channels;
-            int col_sample = sample_count + (compare_val / _num_channels);
+            long long row_sample = compare_val % _num_channels;
+            long long col_sample = sample_count + (compare_val / _num_channels);
             row_sample = _reverse_map_channels[row_sample];
             if (_transpose)
             {
-                int temp = col_sample;
+                long long temp = col_sample;
                 col_sample = row_sample;
-                row_sample = col_sample;
+                row_sample = temp;
             }
             int16_t val = ConvertBytes(buffer[i + 1], buffer[i]);
             channel_data[row_sample][col_sample] = val;
@@ -255,11 +255,11 @@ bool const AxonaBinReader::Read()
     start = std::chrono::high_resolution_clock::now();
 
     // Do all the file writing at the end
-    int sample_size_to_write;
-    int iterate_over;
+    long long sample_size_to_write;
+    long long iterate_over;
     if (_transpose)
     {
-        sample_size_to_write = _sample_bytes * _num_channels;
+        sample_size_to_write = _sample_bytes * (long long)_num_channels;
         iterate_over = total_samples;
     }
     else
@@ -269,7 +269,7 @@ bool const AxonaBinReader::Read()
     }
 
     // Write the channel data out
-    for (int i = 0; i < iterate_over; ++i)
+    for (long long i = 0; i < iterate_over; ++i)
     {
         outfile.write((char *)channel_data[i].data(), sample_size_to_write);
     }
@@ -307,26 +307,26 @@ bool const AxonaBinReader::Read()
                 {
                     if (_transpose)
                     {
-                        for (int j = 0; j < total_samples; ++j)
+                        for (long long j = 0; j < total_samples; ++j)
                         {
                             for (int k = 0; k < 3; ++k)
                             {
                                 temp_holder.push_back(channel_data[j][i + k]);
                             }
                         }
-                        outfile.write((char *)temp_holder.data(), _sample_bytes * total_samples * 3);
+                        outfile.write((char *)temp_holder.data(), (long long)(_sample_bytes) * total_samples * 3);
                         temp_holder.clear();
                     }
                     else
                     {
-                        for (int j = 0; j < total_samples; ++j)
+                        for (long long j = 0; j < total_samples; ++j)
                         {
                             for (int k = 0; k < 3; ++k)
                             {
                                 temp_holder.push_back(channel_data[i + k][j]);
                             }
                         }
-                        outfile.write((char *)temp_holder.data(), _sample_bytes * total_samples * 3);
+                        outfile.write((char *)temp_holder.data(), (long long)(_sample_bytes) * total_samples * 3);
                         temp_holder.clear();
                     }
                 }
@@ -337,7 +337,7 @@ bool const AxonaBinReader::Read()
                 {
                     if (_transpose)
                     {
-                        for (int j = 0; j < total_samples; ++j)
+                        for (long long j = 0; j < total_samples; ++j)
                         {
                             outfile.write((char *)&channel_data[j][i], _sample_bytes);
                         }
