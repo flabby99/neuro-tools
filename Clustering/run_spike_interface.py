@@ -30,8 +30,12 @@ def load_sorting(in_dir, extract_method="phy"):
 
 
 def make_folder_structure(main_dir, out_folder="results_klusta"):
+    dirs = []
     for i in range(16):
-        os.makedirs(os.path.join(main_dir, out_folder, str(i)), exist_ok=True)
+        to_create = os.path.join(main_dir, out_folder, str(i)) 
+        dirs.append(to_create)
+        os.makedirs(to_create, exist_ok=True)
+    return dirs
 
 
 def custom_default_params_list(sorter_name, check=False):
@@ -185,6 +189,40 @@ def compare_sorters(sort1, sort2):
     w_multi = sw.plot_multicomp_graph(comp_multi)
     plt.show()
 
+def validation_fn(recording, sorting, **kwargs):
+    start_unit_ids = sorting.get_unit_ids()
+    sorting_curated_snr = st.curation.threshold_snrs(
+        sorting, recording, threshold=5, threshold_sign='less')
+    end_unit_ids = sorting_curated_snr.get_unit_ids()
+    print("Removed {} units by SNR threshold at 5".format(
+        len(start_unit_ids) - len(end_unit_ids)))
+    validated_sorting = sorting_curated_snr
+
+    # Extra stats that can be printed but takes time
+    # snrs = st.validation.compute_snrs(sorted_s, preproc_recording)
+    # isi_violations = st.validation.compute_isi_violations(sorted_s)
+    # isolations = st.validation.compute_isolation_distances(
+    #     sorted_s, preproc_recording)
+
+    # print('SNR', snrs)
+    # print('ISI violation ratios', isi_violations)
+    # print('Isolation distances', isolations)
+
+    # Do automatic curation based on the snr
+    # snrs_above = st.validation.compute_snrs(
+    #     sorting_curated_snr, preproc_recording)
+    # print('Curated SNR', snrs_above)
+
+    return validated_sorting
+
+def plot_trace(recording, o_dir, t_len=10):
+    # Plot a trace of the raw data
+    o_loc = os.path.join(o_dir, "trace_" + str(t_len) + "s.png")
+    print("Plotting a {}s trace of the raw data to {}".format(
+        t_len, o_loc))
+    w_ts = sw.plot_timeseries(recording, trange=[0, t_len])
+    plt.savefig(o_loc, dpi=200)
+    plt.close()
 
 def run(location, sorter="klusta", output_folder="result",
         verbose=False, view=False, phy_out_folder="phy",
@@ -213,34 +251,26 @@ def run(location, sorter="klusta", output_folder="result",
     else:
         time_axis = 1
     recording = se.BinDatRecordingExtractor(
-        file_path=location, offset=16, dtype=np.int16,
+        file_path=location, offset=0, dtype=np.int16,
         sampling_frequency=48000, numchan=64, time_axis=time_axis)
     recording_prb = recording.load_probe_file(probe_loc)
     get_info(recording, probe_loc)
-
-    # Plot a trace of the raw data
-    t_len = 10
-    o_loc = os.path.join(o_dir, "trace_" + str(t_len) + "s.png")
-    print("Plotting a {}s trace of the raw data to {}".format(
-        t_len, o_loc))
-    w_ts = sw.plot_timeseries(recording_prb, trange=[0, t_len])
-    plt.savefig(o_loc, dpi=200)
+    plot_trace(recording_prb, o_dir)
 
     # Do the pre-processing pipeline
     print("Running preprocessing")
-    recording_f = st.preprocessing.bandpass_filter(
+    preproc_recording = st.preprocessing.bandpass_filter(
         recording_prb, freq_min=300, freq_max=6000)
     bad_chans = [
         i for i in range(3, 64, 4)
-        if i in recording_f.get_channel_ids()]
+        if i in preproc_recording.get_channel_ids()]
     print("Removing {}".format(bad_chans))
-    recording_rm_noise = st.preprocessing.remove_bad_channels(
-        recording_f, bad_channel_ids=bad_chans)
+    preproc_recording = st.preprocessing.remove_bad_channels(
+        preproc_recording, bad_channel_ids=bad_chans)
     print('Channel ids after preprocess:',
-          recording_rm_noise.get_channel_ids())
+          preproc_recording.get_channel_ids())
     print('Channel groups after preprocess:',
-          recording_rm_noise.get_channel_groups())
-    preproc_recording = recording_rm_noise
+          preproc_recording.get_channel_groups())
 
     # Get sorting params and run the sorting
     params = custom_default_params_list(sorter, check=False)
@@ -261,24 +291,7 @@ def run(location, sorter="klusta", output_folder="result",
     if do_validate:
         print("Spike sorting completed, running validation")
         start_time = time()
-        sorting_curated_snr = st.curation.threshold_snr(
-            sorted_s, recording, threshold=5, threshold_sign='less')
-
-        # Extra stats that can be printed but takes time
-        # snrs = st.validation.compute_snrs(sorted_s, preproc_recording)
-        # isi_violations = st.validation.compute_isi_violations(sorted_s)
-        # isolations = st.validation.compute_isolation_distances(
-        #     sorted_s, preproc_recording)
-
-        # print('SNR', snrs)
-        # print('ISI violation ratios', isi_violations)
-        # print('Isolation distances', isolations)
-
-        # Do automatic curation based on the snr
-        # snrs_above = st.validation.compute_snrs(
-        #     sorting_curated_snr, preproc_recording)
-        # print('Curated SNR', snrs_above)
-
+        sorting_curated_snr = validation_fn(recording, sorted_s)
         print("Validated in {:.2f}mins".format((time() - start_time) / 60.0))
     else:
         sorting_curated_snr = sorted_s
@@ -299,14 +312,14 @@ def run(location, sorter="klusta", output_folder="result",
     do_plot = False
     print("Showing some extra information")
     start_time = time()
-    if do_plot:
-        get_sort_info(sorting_curated_snr, preproc_recording, o_dir)
-    else:
-        unit_ids = sorting_curated_snr.get_unit_ids()
-        print("Found", len(unit_ids), 'units')
-        plot_all_forms(sorting_curated_snr, preproc_recording, o_dir)
-    print(
-        "Summarised recording in {:.2f}mins".format((time() - start_time) / 60.0))
+    unit_ids = sorting_curated_snr.get_unit_ids()
+    print("Found", len(unit_ids), 'units')
+    if do_plot_waveforms:
+        print("Plotting waveforms (can set this off in config)")
+        plot_all_forms(sorting_curated_snr, recording_prb, o_dir)
+        print(
+            "Summarised recording in {:.2f}mins".format((
+                time() - start_time) / 60.0))
 
     phy_final = os.path.join(phy_out, "params.py")
     if view:
@@ -316,18 +329,10 @@ def run(location, sorter="klusta", output_folder="result",
             "To view the data in phy, run: phy template-gui {}".format(
                 phy_final))
 
-    # If you need to process the data further!
-    # sorting_phy_curated = se.PhySortingExtractor("phy")
-
-    # Here you could do some comparisons with other things
-    # See the ending part of
-    # https://github.com/SpikeInterface/spiketutorials/blob/master/Spike_sorting_workshop_2019/SpikeInterface_Tutorial.ipynb
-
-
 def start_control(
         location, sort_method, out_folder, tetrodes_to_use,
         remove_last_chan, phy_out_folder, do_validate, do_parallel,
-        do_plot_waveforms, transposed):
+        do_plot_waveforms, transposed, view):
     print("Starting to run spike interface!")
     in_dir = os.path.dirname(location)
     out_loc = os.path.join(in_dir, out_folder, "channel_map.prb")
@@ -336,14 +341,15 @@ def start_control(
     write_prb_file(tetrodes_to_use=tetrodes_to_use, out_loc=out_loc)
     run(location, sort_method, output_folder=out_folder, verbose=False,
         remove_last_chan=remove_last_chan, phy_out_folder=phy_out_folder,
-        view=False, do_validate=do_validate, do_parallel=do_parallel,
-        do_plot_waveforms=do_plot_waveforms, transposed=False)
+        view=view, do_validate=do_validate, do_parallel=do_parallel,
+        do_plot_waveforms=do_plot_waveforms, transposed=transposed)
 
 
 def main_cfg(config):
     check_params_only = config.getboolean("setup", "check_params_only")
     load_sort = config.getboolean("setup", "load_sorting")
     overwrite_bin = config.getboolean("setup", "overwrite_bin")
+    view_phy_on_complete = config.getboolean("setup", "view_phy_on_complete")
     in_dir = config.get("path", "in_dir")
     out_dir = config.get("path", "out_foldername")
     fname = config.get("path", "set_fname")
@@ -365,7 +371,7 @@ def main_cfg(config):
     if sort_method == "klusta":
         do_parallel = True
         # TODO test if this works well or write another
-        end_params = ["F", "T", "T", out_folder]
+        end_params = ["T", "T", "T", out_folder]
     elif sort_method == "spykingcircus":
         do_parallel = False
         end_params = ["F", "F", "F", out_folder]
@@ -385,11 +391,17 @@ def main_cfg(config):
     else:
         set_fullname = os.path.join(in_dir, fname)
 
+    missing = False
     if end_params[1] == "T":
-        make_folder_structure(in_dir, out_dir)
+        made_dirs = make_folder_structure(in_dir, out_folder)
+        for dirname in made_dirs:
+            if not os.path.isfile(os.path.join(dirname, "recording.dat")):
+                missing = True
+                break
+
     bin_fname = fname[:-4] + "_shuff.bin"
     bin_fullname = os.path.join(in_dir, bin_fname)
-    if (not os.path.exists(bin_fullname)) or overwrite_bin:
+    if (not os.path.exists(bin_fullname)) or overwrite_bin or missing:
         print("Writing binary info to {}".format(bin_fullname))
         run_params = ["AxonaBinary", set_fullname, *end_params]
         subprocess.run(run_params)
@@ -412,6 +424,12 @@ def main_cfg(config):
         recording = se.PhyRecordingExtractor(recording_name)
         recording_prb = recording.load_probe_file(
             os.path.join(in_dir, out_folder, "channel_map.prb"))
+        # st.postprocessing.export_to_phy(
+        #     recording_prb, sorting,
+        #     output_folder=os.path.join(in_dir, "phy_prb"),
+        #     grouping_property='group',
+        #     verbose=True, ms_before=0.2, ms_after=0.8, dtype=None,
+        #     max_channels_per_template=12, max_spikes_for_pca=5000)
         plot_all_forms(sorting, recording_prb,
                        os.path.join(in_dir, out_folder))
         # spike_train = sorting.get_unit_spike_train(unit_id=35)
@@ -423,7 +441,7 @@ def main_cfg(config):
     start_control(
         bin_fullname, sort_method, out_folder, tetrodes_to_use,
         remove_last_chan, phy_out_folder, do_validate, do_parallel,
-        do_plot_waveforms, transposed=transposed)
+        do_plot_waveforms, transposed=transposed, view=view_phy_on_complete)
 
 
 if __name__ == "__main__":
