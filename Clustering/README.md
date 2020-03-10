@@ -22,7 +22,7 @@ git clone https://github.com/seankmartin/spiketoolkit
 cd spiketoolkit
 pip install -e .
 cd ..
-git clone https://github.com/SpikeInterface/spikeextractors
+git clone https://github.com/seankmartin/spikeextractors
 cd spikeextractors
 pip install -e .
 cd ..
