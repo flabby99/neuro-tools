@@ -189,16 +189,16 @@ bool const AxonaBinReader::Read()
     // Setup the header and start the clock
     auto start = std::chrono::high_resolution_clock::now();
     std::ofstream outfile(_out_fname, std::ios::out | std::ios::binary);
-    const char header[4] = "bax";
-    outfile.write(header, 3);
-    std::string str = std::to_string(total_samples);
-    while (str.length() != 10)
-    {
-        str.insert(0, "0");
-    }
-    char const *pchar = str.c_str();
-    outfile.write(pchar, 10);
-    outfile.write(header, 3);
+    //const char header[4] = "bax";
+    //outfile.write(header, 3);
+    //std::string str = std::to_string(total_samples);
+    //while (str.length() != 10)
+    //{
+    //    str.insert(0, "0");
+    //}
+    //char const *pchar = str.c_str();
+    //outfile.write(pchar, 10);
+    //outfile.write(header, 3);
 
     // Setup variables
     uint16_t last_input_val = 1000;
