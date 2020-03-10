@@ -4,11 +4,24 @@
  1. Either download the executable from TBD or build the code.
  2. Add the location containing AxonaBinary.exe to PATH.
 
-## SpikeInterface and klusta
- 1. Clone my fork of spikesorters.
- 2. Clone my fork of anything else.
- 3. Clone spikeinterface (maybe I should fork all?)
- 4. pip install . from spikeinterface or pip install spikeinterface
+## Install SpikeInterface and klusta
+```
+git clone https://github.com/seankmartin/spikesorters
+cd spikesorters
+pip install -e .
+cd ..
+git clone https://github.com/seankmartin/spiketoolkit
+cd spiketoolkit
+pip install -e .
+cd ..
+git clone https://github.com/SpikeInterface/spikeextractors
+cd spikeextractors
+pip install -e .
+cd ..
+pip install spikeinterface
+pip install Cython h5py tqdm
+pip install click klusta klustakwik2
+```
 
 ## Install phy for visualisation
 ```
