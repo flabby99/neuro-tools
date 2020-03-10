@@ -3,7 +3,8 @@
 2. Setup the config file at config.cfg.
 3. OPTIONAL Setup the channel mapping at channel_map.py if different than 16 tetrodes.
 4. If not using all 16 tetrodes for spike sorting it would be preferable to modify the c++ code slightly - but it still works! (just not as efficient as possible)
-5. python run_spike_interface.py
+5. pip install numpy matplotlib
+6. python run_spike_interface.py
 
 # How to install requirements for run_spike_interface.py
 
