@@ -26,7 +26,14 @@ git clone https://github.com/seankmartin/spikeextractors
 cd spikeextractors
 pip install -e .
 cd ..
-pip install spikeinterface
+git clone https://github.com/seankmartin/spikewidgets
+cd spikewidgets
+pip install -e .
+cd ..
+git clone https://github.com/seankmartin/spikeinterface
+cd spikeinterface
+pip install -e .
+cd ..
 pip install Cython h5py tqdm
 pip install click klusta klustakwik2
 ```
