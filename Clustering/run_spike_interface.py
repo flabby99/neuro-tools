@@ -301,6 +301,10 @@ def run(location, sorter="klusta", output_folder="result",
         sorting_curated_snr = sorted_s
 
     # Export the result to phy for manual curation
+    if (len(sorting_curated_snr.get_unit_ids()) == 0):
+        print("Found no units in sorting, quitting now")
+        return
+
     start_time = time()
     phy_out = os.path.join(in_dir, phy_out_folder)
     print("Exporting to phy")
