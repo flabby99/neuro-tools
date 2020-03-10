@@ -89,7 +89,6 @@ void AxonaBinReader::Init(std::string name)
     inp_name.append(".inp");
     _out_inpname = inp_name;
     _dir_name = dir_from_file(_out_fname);
-    std::cout << _dir_name << std::endl;
 }
 
 bool const AxonaBinReader::ToInp()
@@ -282,19 +281,18 @@ bool const AxonaBinReader::Read()
         std::vector<int16_t> temp_holder;
         if (_split_tp)
         {
-            temp_holder.reserve(total_samples * 3);
+            temp_holder.reserve(total_samples * _chans_per_tetrode);
         }
         for (int i = 0; i < _num_channels; ++i)
         {
-            // TEMP ignore last channel
-            int mod_bit = (i + 1) % 4;
-            if (((mod_bit == 0) && i != 63) || i == 0)
+            int mod_bit = i % 4;
+            if (mod_bit == 0)
             {
-                int chan = (i + 1) / 4;
+                int tetrode = i / 4;
                 std::string temp_fname = _dir_name;
                 temp_fname.append(_out_split_dir);
                 temp_fname.append("\\");
-                std::string mod_str = std::to_string(chan);
+                std::string mod_str = std::to_string(tetrode);
                 temp_fname.append(mod_str);
                 temp_fname.append("\\recording.dat");
                 std::cout << "Writing split data to " << temp_fname << std::endl;
@@ -309,31 +307,31 @@ bool const AxonaBinReader::Read()
                     {
                         for (long long j = 0; j < total_samples; ++j)
                         {
-                            for (int k = 0; k < 3; ++k)
+                            for (int k = 0; k < _chans_per_tetrode; ++k)
                             {
                                 temp_holder.push_back(channel_data[j][i + k]);
                             }
                         }
-                        outfile.write((char *)temp_holder.data(), (long long)(_sample_bytes) * total_samples * 3);
+                        outfile.write((char *)temp_holder.data(), (long long)(_sample_bytes) * total_samples * _chans_per_tetrode);
                         temp_holder.clear();
                     }
                     else
                     {
                         for (long long j = 0; j < total_samples; ++j)
                         {
-                            for (int k = 0; k < 3; ++k)
+                            for (int k = 0; k < _chans_per_tetrode; ++k)
                             {
                                 temp_holder.push_back(channel_data[i + k][j]);
                             }
                         }
-                        outfile.write((char *)temp_holder.data(), (long long)(_sample_bytes) * total_samples * 3);
+                        outfile.write((char *)temp_holder.data(), (long long)(_sample_bytes) * total_samples * _chans_per_tetrode);
                         temp_holder.clear();
                     }
                 }
             }
             else
             {
-                if ((i + 1) % 4 != 0)
+                if (i % 4 < _chans_per_tetrode)
                 {
                     if (_transpose)
                     {
@@ -377,9 +375,9 @@ bool const AxonaBinReader::Read()
 
 int main(int argc, char **argv)
 {
-    if (argc < 4)
+    if (argc < 5)
     {
-        std::cout << "Please enter as AxonaBinary setfile_location tranpose(T/F) do_split(T/F) [tranpose_split(T/F) out_split_loc]" << std::endl;
+        std::cout << "Please enter as AxonaBinary setfile_location chans_per_tet tranpose(T/F) do_split(T/F) [tranpose_split(T/F) out_split_loc]" << std::endl;
         exit(-1);
     }
     std::string location(argv[1]);
@@ -390,21 +388,22 @@ int main(int argc, char **argv)
     }
     AxonaBinReader axbr{location};
     std::cout << "Converting " << location << std::endl;
-    if (argv[2] == std::string("T"))
+    axbr.SetChansPerTet(std::stoi(argv[2]));
+    if (argv[3] == std::string("T"))
     {
         std::cout << "Will transpose the main outfile" << std::endl;
         axbr.SetTranspose(true);
     }
-    if (argv[3] == std::string("T"))
+    if (argv[4] == std::string("T"))
     {
         std::cout << "Will split the output files" << std::endl;
         axbr.SetDoSplit(true);
-        if (argv[4] == std::string("T"))
+        if (argv[5] == std::string("T"))
         {
             std::cout << "Will transpose the split outfiles" << std::endl;
             axbr.SetSplitTranspose(true);
         }
-        axbr.SetSplitDir(argv[5]);
+        axbr.SetSplitDir(argv[6]);
     }
     axbr.Read();
 }

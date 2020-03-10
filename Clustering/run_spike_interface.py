@@ -120,7 +120,7 @@ def get_sort_info(sorting, recording, out_loc):
     fig.savefig(o_loc, dpi=200)
 
 
-def plot_all_forms(sorting, recording, out_loc):
+def plot_all_forms(sorting, recording, out_loc, channels_per_group=4):
     wf_by_group = st.postprocessing.get_unit_waveforms(
         recording, sorting, ms_before=0.2, ms_after=0.8,
         save_as_features=False, verbose=False, grouping_property="group",
@@ -138,8 +138,8 @@ def plot_all_forms(sorting, recording, out_loc):
                 print(sorting.get_shared_unit_property_names())
                 return
 
-        fig, axes = plt.subplots(3)
-        for j in range(3):
+        fig, axes = plt.subplots(channels_per_group)
+        for j in range(channels_per_group):
             try:
                 wave = wf[:, j, :]
             except Exception:
@@ -261,16 +261,20 @@ def run(location, sorter="klusta", output_folder="result",
     print("Running preprocessing")
     preproc_recording = st.preprocessing.bandpass_filter(
         recording_prb, freq_min=300, freq_max=6000)
-    bad_chans = [
-        i for i in range(3, 64, 4)
-        if i in preproc_recording.get_channel_ids()]
-    print("Removing {}".format(bad_chans))
-    preproc_recording = st.preprocessing.remove_bad_channels(
-        preproc_recording, bad_channel_ids=bad_chans)
-    print('Channel ids after preprocess:',
-          preproc_recording.get_channel_ids())
-    print('Channel groups after preprocess:',
-          preproc_recording.get_channel_groups())
+    if remove_last_chan:
+        bad_chans = [
+            i for i in range(3, 64, 4)
+            if i in preproc_recording.get_channel_ids()]
+        print("Removing {}".format(bad_chans))
+        preproc_recording = st.preprocessing.remove_bad_channels(
+            preproc_recording, bad_channel_ids=bad_chans)
+        print('Channel ids after preprocess:',
+            preproc_recording.get_channel_ids())
+        print('Channel groups after preprocess:',
+            preproc_recording.get_channel_groups())
+        chans_per_tet = 3
+    else:
+        chans_per_tet = 4
 
     # Get sorting params and run the sorting
     params = custom_default_params_list(sorter, check=False)
@@ -316,7 +320,9 @@ def run(location, sorter="klusta", output_folder="result",
     print("Found", len(unit_ids), 'units')
     if do_plot_waveforms:
         print("Plotting waveforms (can set this off in config)")
-        plot_all_forms(sorting_curated_snr, recording_prb, o_dir)
+        plot_all_forms(
+            sorting_curated_snr, recording_prb, o_dir,
+            channels_per_group=chans_per_tet)
         print(
             "Summarised recording in {:.2f}mins".format((
                 time() - start_time) / 60.0))
@@ -368,13 +374,14 @@ def main_cfg(config):
 
     # Note in AxonaBinary the format is
     # AxonaBinary loc tranpose_full transpose_split
+    chans_per_tet = 3 if remove_last_chan else 4
     if sort_method == "klusta":
         do_parallel = True
         # TODO test if this works well or write another
-        end_params = ["T", "T", "T", out_folder]
+        end_params = [str(chans_per_tet), "T", "T", "T", out_folder]
     elif sort_method == "spykingcircus":
         do_parallel = False
-        end_params = ["F", "F", "F", out_folder]
+        end_params = [str(chans_per_tet), "F", "F", "F", out_folder]
     else:
         raise ValueError(
             "Currently unsupported method {}".format(sort_method))
@@ -392,7 +399,7 @@ def main_cfg(config):
         set_fullname = os.path.join(in_dir, fname)
 
     missing = False
-    if end_params[1] == "T":
+    if end_params[2] == "T":
         made_dirs = make_folder_structure(in_dir, out_folder)
         for dirname in made_dirs:
             if not os.path.isfile(os.path.join(dirname, "recording.dat")):
@@ -437,7 +444,7 @@ def main_cfg(config):
         # print(spike_train[:20] / 48000)
         exit(-1)
 
-    transposed = (end_params[0] == "T")
+    transposed = (end_params[1] == "T")
     start_control(
         bin_fullname, sort_method, out_folder, tetrodes_to_use,
         remove_last_chan, phy_out_folder, do_validate, do_parallel,

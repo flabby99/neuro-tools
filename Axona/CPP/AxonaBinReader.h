@@ -40,6 +40,7 @@ class AxonaBinReader
     bool _transpose = false;
     bool _split_tp = false;
     bool _do_split = false;
+    int _chans_per_tetrode = 4;
 
     int16_t ConvertBytes(char b1, char b2);
 
@@ -75,5 +76,13 @@ public:
     inline void SetSplitDir(const std::string &name)
     {
         _out_split_dir = name;
+    }
+    inline void SetChansPerTet(const int& chans)
+    {
+        _chans_per_tetrode = chans;
+    }
+    const int GetChansPerTet()
+    {
+        return _chans_per_tetrode;
     }
 };
