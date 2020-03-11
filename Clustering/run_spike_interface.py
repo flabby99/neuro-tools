@@ -385,7 +385,7 @@ def main_cfg(config):
         end_params = [str(chans_per_tet), "T", "T", "T", out_folder]
     elif sort_method == "spykingcircus":
         do_parallel = False
-        end_params = [str(chans_per_tet), "F", "F", "F", out_folder]
+        end_params = [str(chans_per_tet), "T", "T", "F", out_folder]
     else:
         raise ValueError(
             "Currently unsupported method {}".format(sort_method))
