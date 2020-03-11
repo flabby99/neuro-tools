@@ -7,19 +7,27 @@ from path_utils import get_all_files_in_dir
 def main(location, default_config):
     out_dir = default_config.get("path", "out_foldername")
     sort_method = default_config.get("sorting", "sort_method")
+    overwrite_batch = default_config.get("batch", "overwrite_batch")
+    regex_filter = default_config.get("batch", "regex_filter")
+    if regex_filter == "":
+        regex_filter = None
 
     if out_dir == "default":
         out_folder = "results_" + sort_method
         phy_out_folder = "phy_" + sort_method
 
     set_files = get_all_files_in_dir(
-        location, recursive=True, ext=".set", case_sensitive_ext=True)
+        location, recursive=True, ext=".set", case_sensitive_ext=True,
+        re_filter=regex_filter)
     with open(os.path.join(location, "output_log_batchclust.txt"), "w") as f:
         for set_file in set_files:
             set_dir = os.path.dirname(set_file)
             ac_out_folder = os.path.join(set_dir, out_folder)
             ac_phy_folder = os.path.join(set_dir, out_folder)
-            if os.path.isdir(ac_out_folder) and os.path.isdir(ac_phy_folder):
+            if (
+                (not overwrite_batch) and 
+                os.path.isdir(ac_out_folder) and 
+                os.path.isdir(ac_phy_folder)):
                 f.write("Skipping {} as already clustered\n".format(set_file))
             elif not os.path.isfile(set_file[:-4] + ".bin"):
                 f.write("Skipping {} as no binary file available\n")
@@ -29,11 +37,12 @@ def main(location, default_config):
                 default_config.set(
                     "path", "set_fname", os.path.basename(set_file))
                 main_cfg(default_config)
+            exit(-1)
 
 if __name__ == "__main__":
-    location = r"G:\Ham\A1"
     here = os.path.dirname(os.path.abspath(__file__))
-    config_loc = os.path.join(here, "configs", "default_config.cfg")
+    config_loc = os.path.join(here, "configs", "batch_config.cfg")
     default_config = ConfigParser()
     default_config.read(config_loc)
+    location = default_config.get("batch", "batch_start_dir")
     main(location, default_config)
