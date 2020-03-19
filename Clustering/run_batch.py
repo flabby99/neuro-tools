@@ -37,7 +37,6 @@ def main(location, default_config):
                 default_config.set(
                     "path", "set_fname", os.path.basename(set_file))
                 main_cfg(default_config)
-            exit(-1)
 
 if __name__ == "__main__":
     here = os.path.dirname(os.path.abspath(__file__))
