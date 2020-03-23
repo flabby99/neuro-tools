@@ -191,8 +191,13 @@ def compare_sorters(sort1, sort2):
 
 def validation_fn(recording, sorting, **kwargs):
     start_unit_ids = sorting.get_unit_ids()
+    filt_params = {
+        "apply_filter" : False,
+        "freq_min": 300,
+        "freq_max": 6000}
     sorting_curated_snr = st.curation.threshold_snrs(
-        sorting, recording, threshold=5, threshold_sign='less')
+        sorting, recording, threshold=5, threshold_sign='less',
+        recording_params=filt_params)
     end_unit_ids = sorting_curated_snr.get_unit_ids()
     print("Removed {} units by SNR threshold at 5".format(
         len(start_unit_ids) - len(end_unit_ids)))
