@@ -163,12 +163,13 @@ bool const AxonaBinReader::Read()
 
     // Set up buffers and storage vectors
     const int buff_size = _chunksize;
+    const long long tp_chunk_size = _transpose_chunk_size;
     std::vector<char> buffer(buff_size, 0);
     long long row_dim;
     long long col_dim;
     if (_transpose)
     {
-        row_dim = total_samples;
+        row_dim = tp_chunk_size;
         col_dim = _num_channels;
     }
     else
@@ -187,7 +188,7 @@ bool const AxonaBinReader::Read()
 
     // Setup the header and start the clock
     auto start = std::chrono::high_resolution_clock::now();
-    std::ofstream outfile(_out_fname, std::ios::out | std::ios::binary);
+    std::ofstream outfile;
     //const char header[4] = "bax";
     //outfile.write(header, 3);
     //std::string str = std::to_string(total_samples);
@@ -203,13 +204,17 @@ bool const AxonaBinReader::Read()
     uint16_t last_input_val = 1000;
     uint16_t last_output_val = 1000;
 
+    // Do all the file writing at the end
+    long long sample_size_to_write;
+    long long iterate_over;
+
     // Read info
     while (infile.read(buffer.data(), buffer.size()))
     {
         // Inp file calculation
         uint16_t input_val = (256 * (uint8_t)buffer[9]) + (uint8_t)buffer[8];
         uint16_t output_val = (256 * (uint8_t)buffer[417]) + (uint8_t)buffer[416];
-        uint32_t timestamp = sample_count / 3;
+        uint32_t timestamp = sample_count / _samples_per_chunk;
 
         // Only record when the data changes
         if (input_val != last_input_val)
@@ -237,7 +242,7 @@ bool const AxonaBinReader::Read()
             row_sample = _reverse_map_channels[row_sample];
             if (_transpose)
             {
-                long long temp = col_sample;
+                long long temp = col_sample % tp_chunk_size;
                 col_sample = row_sample;
                 row_sample = temp;
             }
@@ -245,77 +250,115 @@ bool const AxonaBinReader::Read()
             channel_data[row_sample][col_sample] = val;
         }
 
-        sample_count += 3;
-    }
-    infile.close();
-    auto finish = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed = finish - start;
-    std::cout << "Elapsed time to read channels: " << elapsed.count() << " s\n";
-    start = std::chrono::high_resolution_clock::now();
+        sample_count += _samples_per_chunk;
 
-    // Do all the file writing at the end
-    long long sample_size_to_write;
-    long long iterate_over;
-    if (_transpose)
-    {
-        sample_size_to_write = _sample_bytes * (long long)_num_channels;
-        iterate_over = total_samples;
-    }
-    else
-    {
-        sample_size_to_write = _sample_bytes * total_samples;
-        iterate_over = _num_channels;
-    }
-
-    // Write the channel data out
-    for (long long i = 0; i < iterate_over; ++i)
-    {
-        outfile.write((char *)channel_data[i].data(), sample_size_to_write);
-    }
-
-    // Do all the file writing at the end
-
-    // Write the channel data out in blocks
-    if (_do_split)
-    {
-        std::vector<int16_t> temp_holder;
-        if (_split_tp)
-        {
-            temp_holder.reserve(total_samples * _chans_per_tetrode);
-        }
-        for (int i = 0; i < _num_channels; ++i)
-        {
-            int mod_bit = i % 4;
-            if (mod_bit == 0)
+        if (_transpose && ((sample_count % tp_chunk_size == 0) || (sample_count == total_samples)))
+        {   
+            // TODO account for the last chunk
+            sample_size_to_write = _sample_bytes * (long long)_num_channels;
+            iterate_over = sample_count % tp_chunk_size;
+            if (sample_count != total_samples)
+                iterate_over = tp_chunk_size;
+            else
             {
-                int tetrode = i / 4;
-                std::string temp_fname = _dir_name;
-                temp_fname.append(_out_split_dir);
-                temp_fname.append("\\");
-                std::string mod_str = std::to_string(tetrode);
-                temp_fname.append(mod_str);
-                temp_fname.append("\\recording.dat");
-                std::cout << "Writing split data to " << temp_fname << std::endl;
-                outfile.close();
-                outfile.open(temp_fname, std::ios::out | std::ios::binary);
+                iterate_over = sample_count % tp_chunk_size;
+                if (iterate_over == 0)
+                    iterate_over = tp_chunk_size;
             }
-            if (_split_tp)
+            int iters_left = (total_samples - sample_count) / tp_chunk_size + (sample_count != total_samples);
+            std::cout << "Writing " << iterate_over << " samples this loop" << std::endl;
+            std::cout << iters_left << " iterations left" << std::endl;
+
+            outfile.open(_out_fname, std::ios::out | std::ios::binary | std::ios::app);
+            // Write the channel data out
+            for (long long i = 0; i < iterate_over; ++i)
             {
-                if (i % 4 == 0)
+                outfile.write((char*)channel_data[i].data(), sample_size_to_write);
+            }
+
+            // Write the channel data out in blocks
+            if (_do_split)
+            {
+                std::vector<int16_t> temp_holder;
+                temp_holder.reserve(iterate_over * _chans_per_tetrode);
+                for (int i = 0; i < _num_channels; ++i)
                 {
-                    if (_transpose)
+                    bool at_tetrode_start = (i % 4 == 0);
+                    if (at_tetrode_start)
                     {
-                        for (long long j = 0; j < total_samples; ++j)
+                        int tetrode = i / 4;
+                        std::string temp_fname = _dir_name;
+                        temp_fname.append(_out_split_dir);
+                        temp_fname.append("\\");
+                        std::string mod_str = std::to_string(tetrode);
+                        temp_fname.append(mod_str);
+                        temp_fname.append("\\recording.dat");
+                        std::cout << "Writing split data to " << temp_fname << std::endl;
+                        outfile.close();
+                        outfile.open(temp_fname, std::ios::out | std::ios::binary | std::ios::app);
+                    }
+                    if (at_tetrode_start)
+                    {
+                        for (long long j = 0; j < iterate_over; ++j)
                         {
                             for (int k = 0; k < _chans_per_tetrode; ++k)
                             {
                                 temp_holder.push_back(channel_data[j][i + k]);
                             }
                         }
-                        outfile.write((char *)temp_holder.data(), (long long)(_sample_bytes) * total_samples * _chans_per_tetrode);
+                        outfile.write((char*)temp_holder.data(), (long long)(_sample_bytes) * iterate_over * _chans_per_tetrode);
                         temp_holder.clear();
+                        }
                     }
-                    else
+                }
+            }
+            outfile.close();
+    }
+    infile.close();
+    auto finish = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = finish - start;
+    std::cout << "Elapsed time to read channels and write data: " << elapsed.count() << " s\n";
+    start = std::chrono::high_resolution_clock::now();
+
+    if (!_transpose)
+    {
+        sample_size_to_write = _sample_bytes * total_samples;
+        iterate_over = _num_channels;
+
+        // Write the channel data out
+        outfile.open(_out_fname, std::ios::out | std::ios::binary);
+        for (long long i = 0; i < iterate_over; ++i)
+        {
+            outfile.write((char*)channel_data[i].data(), sample_size_to_write);
+        }
+
+        // Write the channel data out in blocks
+        if (_do_split)
+        {
+            std::vector<int16_t> temp_holder;
+            if (_split_tp)
+            {
+                temp_holder.reserve(total_samples * _chans_per_tetrode);
+            }
+            for (int i = 0; i < _num_channels; ++i)
+            {
+                int mod_bit = i % 4;
+                if (mod_bit == 0)
+                {
+                    int tetrode = i / 4;
+                    std::string temp_fname = _dir_name;
+                    temp_fname.append(_out_split_dir);
+                    temp_fname.append("\\");
+                    std::string mod_str = std::to_string(tetrode);
+                    temp_fname.append(mod_str);
+                    temp_fname.append("\\recording.dat");
+                    std::cout << "Writing split data to " << temp_fname << std::endl;
+                    outfile.close();
+                    outfile.open(temp_fname, std::ios::out | std::ios::binary);
+                }
+                if (_split_tp)
+                {
+                    if (i % 4 == 0)
                     {
                         for (long long j = 0; j < total_samples; ++j)
                         {
@@ -324,25 +367,15 @@ bool const AxonaBinReader::Read()
                                 temp_holder.push_back(channel_data[i + k][j]);
                             }
                         }
-                        outfile.write((char *)temp_holder.data(), (long long)(_sample_bytes) * total_samples * _chans_per_tetrode);
+                        outfile.write((char*)temp_holder.data(), (long long)(_sample_bytes)*total_samples * _chans_per_tetrode);
                         temp_holder.clear();
                     }
                 }
-            }
-            else
-            {
-                if (i % 4 < _chans_per_tetrode)
+                else
                 {
-                    if (_transpose)
+                    if (i % 4 < _chans_per_tetrode)
                     {
-                        for (long long j = 0; j < total_samples; ++j)
-                        {
-                            outfile.write((char *)&channel_data[j][i], _sample_bytes);
-                        }
-                    }
-                    else
-                    {
-                        outfile.write((char *)channel_data[i].data(), sample_size_to_write);
+                        outfile.write((char*)channel_data[i].data(), sample_size_to_write);
                     }
                 }
             }

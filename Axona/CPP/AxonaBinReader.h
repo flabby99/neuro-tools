@@ -36,6 +36,7 @@ class AxonaBinReader
     const int _chunksize = 432;
     const int _trailer_bytes = 16;
     const int _samples_per_chunk = 3;
+    const long long  _transpose_chunk_size = 2880000;
     int _num_channels = 64;
     bool _transpose = false;
     bool _split_tp = false;
