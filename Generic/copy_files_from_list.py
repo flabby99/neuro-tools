@@ -1,10 +1,14 @@
 import os
 import shutil
 
-from skm_pyutils.py_path import make_dir_if_not_exists
-from neurochat.nc_data import NData
+# This can be obtained from my github at seankmartin
 from neurochat.nc_spike import NSpike
 from get_files_from_list import main as get_files
+
+
+def make_dir_if_not_exists(dirname):
+    """Make the directory dirname if it does not exist."""
+    os.makedirs(dirname, exist_ok=True)
 
 
 def my_copy(f, t, only_check=True, verbose=False):
@@ -26,20 +30,6 @@ def get_spike_times(spike_file, unit_num):
     spike.set_unit_no(unit_num)
     spike_times = spike.get_unit_stamp()
     return spike_times
-
-
-def analyse_all_data(file_list):
-    ndata = NData()
-    results = []
-    for i in range(len(file_list["set_files"])):
-        print("Working on {}: {}".format(i, file_list["set_files"][i]))
-        ndata.set_spatial_file(file_list["txt_files"][i])
-        ndata.set_spike_file(file_list["spike_files"][i])
-        ndata.load_spike()
-        ndata.load_spatial()
-        ndata.set_unit_no(int(file_list["unit"][i]))
-        num_spikes = ndata.get_unit_spikes_count()
-        results.append(num_spikes / ndata.get_duration())
 
 
 def write(main_dir, df, only_check=True, verbose=False):
@@ -73,7 +63,8 @@ def write(main_dir, df, only_check=True, verbose=False):
 
         # Files created
         spike_times = get_spike_times(tetrode_file, unit_num)
-        time_name = os.path.join(base_dir, row.FileName + ".csv")
+        time_name = os.path.join(
+            base_dir, row.FileName + "_" + row.Unit + ".csv")
         spikes_as_csv = ""
         for spike_time in spike_times:
             spikes_as_csv = "{}, {:.4f}".format(spikes_as_csv, spike_time)
@@ -88,8 +79,6 @@ def write(main_dir, df, only_check=True, verbose=False):
 
 
 def main(excel_loc, data_dir):
-    ndata = NData()
-    results = []
     file_list, excel_info = get_files(
         excel_loc, data_dir, write=False)
     write(r"D:\CopyPawel", excel_info, only_check=False, verbose=True)
@@ -99,3 +88,16 @@ if __name__ == "__main__":
     excel_loc = r"D:\Pawel\ALL UNITS DATA.xlsx"
     data_dir = r"D:\Pawel\Spatial rel"
     main(excel_loc, data_dir)
+
+# def analyse_all_data(file_list):
+#     ndata = NData()
+#     results = []
+#     for i in range(len(file_list["set_files"])):
+#         print("Working on {}: {}".format(i, file_list["set_files"][i]))
+#         ndata.set_spatial_file(file_list["txt_files"][i])
+#         ndata.set_spike_file(file_list["spike_files"][i])
+#         ndata.load_spike()
+#         ndata.load_spatial()
+#         ndata.set_unit_no(int(file_list["unit"][i]))
+#         num_spikes = ndata.get_unit_spikes_count()
+#         results.append(num_spikes / ndata.get_duration())

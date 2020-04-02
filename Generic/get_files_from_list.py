@@ -151,9 +151,6 @@ def find_files(info, data_dir):
                     return True, fname
         return False, None
 
-    # TODO need to match the rat name
-
-    # Find set files that match
     for i, f in enumerate(info["FileName"]):
         rat = info["RAT"][i].strip()
         test, fname = ok_file(f, rat)
@@ -162,6 +159,7 @@ def find_files(info, data_dir):
             good_basenames.append(os.path.basename(fname)[:-4])
             tetrode_list.append(info["Tetrode"][i])
             units.append(info["Unit"][i])
+
     txt_files = get_all_files_in_dir(
         data_dir, ext="txt", verbose=False, recursive=True)
 
