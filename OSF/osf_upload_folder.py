@@ -55,6 +55,25 @@ def get_osf_files():
         for line in result.splitlines()]
 
 
+def list_extensions(folder):
+    file_list = get_all_files_in_dir(folder, recursive=True)
+    return get_extensions(file_list)
+
+
+def get_extensions(l):
+    ext_list = []
+    for item in l:
+        ext = os.path.splitext(item)[1][1:]
+        if not ext in ext_list:
+            ext_list.append(ext)
+    return ext_list
+
+
+def list_osf_extensions():
+    l = get_osf_files()
+    return get_extensions(l)
+
+
 def should_use_file(filename, ext_ignore_list):
     """Returns True if filename extension not in ext_ignore_list."""
     ext = os.path.splitext(filename)[1][1:]
@@ -93,18 +112,19 @@ def check_files(ext_ignore_list, verbose=True):
 
 def custom_function(info):
     """Use this to do anything you like in upload_folder."""
-    local = info["local"]
-    remote = info["remote"]
-    f = info["f"]
-    current_remote = info["current_remote"]
-    if local[-4:] == ".set":
-        if not (remote[:-3] + "eeg") in info["current_remote"]:
-            eeg_file = write_blank_eeg(local, ".temp")
-            s = "Uploaded {} to {}".format(eeg_file, remote[:-3] + "eeg")
-            print(s)
-            f.write(s + "\n")
-            upload_file(eeg_file, remote[:-3] + "eeg")
-            send2trash(eeg_file)
+    pass
+    # local = info["local"]
+    # remote = info["remote"]
+    # f = info["f"]
+    # current_remote = info["current_remote"]
+    # if local[-4:] == ".set":
+    #     if not (remote[:-3] + "eeg") in info["current_remote"]:
+    #         eeg_file = write_blank_eeg(local, ".temp")
+    #         s = "Uploaded {} to {}".format(eeg_file, remote[:-3] + "eeg")
+    #         print(s)
+    #         f.write(s + "\n")
+    #         upload_file(eeg_file, remote[:-3] + "eeg")
+    #         send2trash(eeg_file)
 
 
 def upload_folder(folder, ignore_list, recursive=True):
@@ -155,46 +175,23 @@ def clear_osf():
         return
 
 
-def list_extensions(folder):
-    file_list = get_all_files_in_dir(folder, recursive=True)
-    return get_extensions(file_list)
-
-
-def get_extensions(l):
-    ext_list = []
-    for item in l:
-        ext = os.path.splitext(item)[1][1:]
-        if not ext in ext_list:
-            ext_list.append(ext)
-    return ext_list
-
-
-def list_osf_extensions():
-    l = get_osf_files()
-    return get_extensions(l)
-
-
 if __name__ == "__main__":
     # NOTE please change this to be your password and change .osfcli.config
     your_osf_password = "Can't Steal this!"
     os.environ["OSF_PASSWORD"] = your_osf_password
-    # location = r"C:\Users\smartin5\Recordings\Matheus"
-    ignore_list = ["inp", "eeg", "egf", "plx",
-                   "hdf5", "csv", "pdf", "png", "svg", "txt", "jpg",
-                   "mat", "bmp", "xlsx", "ps", "log"]
-    # upload_folder(location, ignore_list)
-    location = r"G:\ToUp"
-    # upload_folder(location, ignore_list)
-    # print(list_extensions(location))
-    # print(list_osf_extensions())
-    # print(check_files(ignore_list, verbose=False))
-    # list_files()
-    # exit(1)
-    # name = r"osfstorage\t3.txt"
+    ignore_list = []
+    location = r"D:\CopyPawel"
+    upload_folder(location, ignore_list)
     files = get_osf_files()
     with open(os.path.join(location, "all_files.txt"), "w") as f:
         for item in files:
             f.write(item + "\n")
-    # name = files[0]
-    # remove_file(name)
+    # list_files()
+    # upload_folder(location, ignore_list)
+    # location = r"C:\Users\smartin5\Recordings\Matheus"
+    # print(list_extensions(location))
+    # print(list_osf_extensions())
+    # for f in check_files(ignore_list, verbose=False):
+    #     print("removing {}".format(f))
+    #     remove_file(f)
     # clear_osf()
