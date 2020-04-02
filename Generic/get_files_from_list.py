@@ -4,6 +4,7 @@ import numpy as np
 import os
 import re
 
+
 def has_ext(filename, ext, case_sensitive_ext=False):
     """
     Check if the filename ends in the extension.
@@ -108,14 +109,16 @@ def get_all_files_in_dir(
         print()
     return onlyfiles
 
+
 def parse_excel(excel_loc):
     df = pd.read_excel(io=excel_loc, sheet_name=0)
     df = df.iloc[:, :3]
+
     def split_trial_info(row):
         row = row["TRIAL"]
         TT_part = row.find("TT")
-        fname = row[:TT_part-1]
-        tetrode = row[TT_part+2]
+        fname = row[:TT_part - 1]
+        tetrode = row[TT_part + 2]
         SS_part = row[TT_part:].find("SS")
         unit_num = row[TT_part:][SS_part + 3:]
         return np.array([fname, tetrode, unit_num])
@@ -128,6 +131,7 @@ def parse_excel(excel_loc):
     df["Unit"] = split_info[:, 2]
     df.to_csv("test.csv", index=False)
     return df
+
 
 def find_files(info, data_dir):
     files = get_all_files_in_dir(
@@ -149,9 +153,9 @@ def find_files(info, data_dir):
 
     # TODO need to match the rat name
 
-    # Find set files that match    
+    # Find set files that match
     for i, f in enumerate(info["FileName"]):
-        rat = info["RAT "][i].strip()
+        rat = info["RAT"][i].strip()
         test, fname = ok_file(f, rat)
         if test:
             good_files.append(fname)
@@ -185,7 +189,7 @@ def find_files(info, data_dir):
                 "Skipping tetrode {} - no cluster file named {} or {}".format(tetrode, cut_name, os.path.basename(clu_name)))
             continue
         good_spike_files.append(spike_name)
-        
+
     result = {
         "set_files": good_files,
         "txt_files": good_txt_files,
@@ -195,17 +199,19 @@ def find_files(info, data_dir):
     }
     return result
 
+
 def to_string(str_info):
     """Alternative string representation should be prettier."""
     all_str_info = []
     for i in range(len(str_info["set_files"])):
         b_str = "{}: \n\tSpk {}\n\tUnt {}\n\tPos {}".format(
-            i, str_info["spike_files"][i], str_info["unit"][i], 
+            i, str_info["spike_files"][i], str_info["unit"][i],
             str_info["txt_files"][i])
         all_str_info.append(b_str)
     return "\n".join(all_str_info)
 
-def main(excel_loc, data_dir):
+
+def main(excel_loc, data_dir, write=False):
     info = parse_excel(excel_loc)
     result = find_files(info, data_dir)
     missing_files = []
@@ -213,20 +219,27 @@ def main(excel_loc, data_dir):
         if f not in result["basenames"]:
             missing_files.append(f)
     result_avg_len = (
-        len(result["set_files"]) + 
-        len(result["txt_files"]) + 
+        len(result["set_files"]) +
+        len(result["txt_files"]) +
         len(result["spike_files"])) / 3
     if result_avg_len != len(info):
         raise ValueError(
             "Failed to find some files:" +
             "found set:{}, txt:{}, spike:{} of {}, missing {}".format(
-                len(result["set_files"]), len(result["txt_files"]), 
+                len(result["set_files"]), len(result["txt_files"]),
                 len(result["spike_files"]), len(info), missing_files)
         )
-    str_v = to_string(result)
-    with open("f_info.txt", "w") as f:
-        f.write(str_v)
-    return result
+    info["full_spatial_path"] = result["txt_files"]
+    info["full_set_file"] = result["set_files"]
+    info["full_spike_file"] = result["spike_files"]
+
+    if write:
+        str_v = to_string(result)
+        with open("f_info.txt", "w") as f:
+            f.write(str_v)
+        info.to_csv("f_info_csv.csv", index=False)
+    return result, info
+
 
 if __name__ == "__main__":
     excel_loc = r"E:\Pawel\ALL UNITS DATA.xlsx"
