@@ -16,4 +16,4 @@
 - med-pc-syntax: A simple extension for VS Code to support basics of MPC language.
 
 ## See also
-We 
+We have extra scripts for a specific experiment to investigate Claustral function on [GitHub](https://github.com/seankmartin/Claustrum_Experiment)
