@@ -1,4 +1,11 @@
-# Running spike sorting on Axona data
+# Clustering Axona raw data
+
+## Purpose
+Mostly designed to stop the default copying operation that SpikeInterface performs with the raw file, and also to simplify the running of clustering with SpikeInterface a little bit.
+
+Note that my forks of SpikeInterface repositories are required to take advantage of the alternative non-copying behavior.
+
+## Running spike sorting on Axona data
 1. Record data in raw mode at 48kHz.
 2. Setup the config file at config.cfg.
 3. OPTIONAL Setup the channel mapping at channel_map.py if different than 16 tetrodes.
@@ -6,13 +13,13 @@
 5. pip install numpy matplotlib
 6. python run_spike_interface.py
 
-# How to install requirements for run_spike_interface.py
+## How to install requirements for run_spike_interface.py
 
-## C++ code for AxonaBinary
+### C++ code for AxonaBinary
  1. Either download the executable from TBD or build the code.
  2. Add the location containing AxonaBinary.exe to PATH.
 
-## Install SpikeInterface and klusta
+### Install SpikeInterface and klusta
 ```
 git clone https://github.com/seankmartin/spikesorters
 cd spikesorters
@@ -38,7 +45,7 @@ pip install Cython h5py tqdm
 pip install click klusta klustakwik2
 ```
 
-## Install phy for visualisation
+### Install phy for visualisation
 ```
 git clone https://github.com/cortex-lab/phy.git
 cd phy

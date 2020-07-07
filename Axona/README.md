@@ -1,13 +1,16 @@
-# Axona
+# Axona file manipulations
 
 ## Axona systems related files
+The C++ code is designed to quickly shuffle the default Axona binary file which is slow to read and wasteful of space into something more efficient. The shuffling is written in C++ and is fast. Can also convert the binary into both Channels * samples and samples * channels dimensions.
+
+The Python code is designed to sense check the faster C++ code by using numpy memmaps (far easier to code). Also provides some visualisation methods on raw data.
 
 ## Requirements
 
-numpy and h5py
+numpy and h5py for the Python code.
+A C++ compiler for the C++ code in the CPP folder.
 
 ## Current Contents
 
-- raw_axona_loading.py: Axona bin file data reading and output to hdf5.
-- print_h5_summary.py: Print the structure of a hdf5 file.
-- print_h5_sample.py: Print samples values from a hdf5 file.
+- CPP: C++ code for shuffling and converting Axona raw binary files.
+- Various Python files for binary reading, .inp reading, .eeg merging.

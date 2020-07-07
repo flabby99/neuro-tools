@@ -1,6 +1,6 @@
 # OperantBox
 
-## DACqUSB operant box controller.
+General DACqUSB operant box control scripts.
 
 ## Current Contents
 
