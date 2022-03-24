@@ -14,6 +14,8 @@
 - OSF: Scripts using the CLI provided by OSF to simplify the upload process of large repositories to OSF without having to zip the folders.
 - OperantBox: A DACQBASIC operant box controller system, or control scripts for the Axona system.
 - med-pc-syntax: A simple extension for VS Code to support basics of MPC language.
+- SIMURAN: Files for use with the SIMURAN github package
 
 ## See also
+
 We have extra scripts for a specific experiment to investigate Claustral function on [GitHub](https://github.com/seankmartin/Claustrum_Experiment)
