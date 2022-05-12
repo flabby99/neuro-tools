@@ -18,4 +18,6 @@
 
 ## See also
 
-We have extra scripts for a specific experiment to investigate Claustral function on [GitHub](https://github.com/seankmartin/Claustrum_Experiment)
+We have extra scripts for a specific experiment to investigate Claustral function on [GitHub](https://github.com/seankmartin/Claustrum_Experiment).
+
+We also have a [utility package](https://github.com/seankmartin/PythonUtils) and [python project template](https://github.com/seankmartin/PythonTemplate).
