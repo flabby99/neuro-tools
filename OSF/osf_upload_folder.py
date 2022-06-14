@@ -5,10 +5,10 @@ The github version of osfclient is better than the PYPI version.
 
 import subprocess
 import os
+from argparse import ArgumentParser
+import csv
 
-from send2trash import send2trash
-
-from utils import get_all_files_in_dir, log_exception, write_blank_eeg
+from utils import get_all_files_in_dir
 
 
 def run_osf(args):
@@ -19,7 +19,7 @@ def run_osf(args):
 def run_capture_osf(args):
     """Run osf args from command line but capture the output in python."""
     result = subprocess.run(["osf", *args], stdout=subprocess.PIPE)
-    return result.stdout.decode('utf-8')
+    return result.stdout.decode("utf-8")
 
 
 def get_help():
@@ -51,8 +51,8 @@ def get_osf_files():
     """Get a list of all files in this OSF project."""
     result = run_capture_osf(["ls"])
     return [
-        line[len("osfstorage\\"):].replace("/", "\\")
-        for line in result.splitlines()]
+        line[len("osfstorage\\") :].replace("/", "\\") for line in result.splitlines()
+    ]
 
 
 def list_extensions(folder):
@@ -64,7 +64,7 @@ def get_extensions(l):
     ext_list = []
     for item in l:
         ext = os.path.splitext(item)[1][1:]
-        if not ext in ext_list:
+        if ext not in ext_list:
             ext_list.append(ext)
     return ext_list
 
@@ -77,10 +77,7 @@ def list_osf_extensions():
 def should_use_file(filename, ext_ignore_list):
     """Returns True if filename extension not in ext_ignore_list."""
     ext = os.path.splitext(filename)[1][1:]
-    for ignore in ext_ignore_list:
-        if ext.startswith(ignore):
-            return False
-    return True
+    return not any(ext.startswith(ignore) for ignore in ext_ignore_list)
 
 
 def is_temp_file(filename):
@@ -89,7 +86,7 @@ def is_temp_file(filename):
     ignore_list = ["fmask", "fet", "klg", "initialclusters", "temp"]
     bad_ext = not should_use_file(base_without_ext, ignore_list)
     num_dots = len(base_without_ext.split(".")) - 1
-    bad_dots = (num_dots > 1)
+    bad_dots = num_dots > 1
     return bad_dots or bad_ext
 
 
@@ -102,10 +99,9 @@ def check_files(ext_ignore_list, verbose=True):
             continue
         su = should_use_file(f, ext_ignore_list)
         tf = is_temp_file(f)
-        if (not su) or tf:
+        if not su or tf:
             if verbose:
-                print("Should have ignored {} - bad ext {}, temp {}".format(
-                    f, not su, tf))
+                print(f"Should have ignored {f} - bad ext {not su}, temp {tf}")
             files_to_ignore.append(f)
     return files_to_ignore
 
@@ -127,42 +123,48 @@ def custom_function(info):
     #         send2trash(eeg_file)
 
 
-def upload_folder(folder, ignore_list, recursive=True):
+def get_files_to_upload(folder, ignore_list, recursive=True):
     """Upload everything in folder to OSF."""
     file_list = get_all_files_in_dir(folder, recursive=recursive)
-    remote_list = [fname[len(folder + os.sep):] for fname in file_list]
-    current_remote = get_osf_files()
-    print("Beginning upload process ignoring extensions {} and temp files".format(
-        ignore_list))
+    remote_list = [fname[len(folder + os.sep) :] for fname in file_list]
+    current_remote = read_files(os.path.join(folder, "all_files.txt"))
+    print(f"Beginning upload process ignoring extensions {ignore_list} and temp files")
+
+    locals_, remotes_ = [], []
     with open(os.path.join(folder, "uploaded_files.txt"), "w") as f:
-        for i, (local, remote) in enumerate(zip(file_list, remote_list)):
-            su = should_use_file(local, ignore_list)
-            tf = is_temp_file(local)
-            if su and (not tf):
-                if not remote in current_remote:
-                    info = {"local": local, "remote": remote,
-                            "f": f, "current_remote": current_remote}
-                    custom_function(info)
-                    upload_file(local, remote)
-                    s = "Uploaded {} to {}".format(local, remote)
+        for local, remote in zip(file_list, remote_list):
+            if remote not in current_remote:
+                tf = is_temp_file(local)
+                su = should_use_file(local, ignore_list)
+                if su and (not tf):
+                    s = f"Will upload {local} to {remote}"
+                    locals_.append(local)
+                    remotes_.append(remote)
                 else:
-                    s = "Skipped upload of {} to {} - already in OSF".format(
-                        local, remote)
+                    s = f"Not uploading {local} - does not meet upload conditions"
             else:
-                s = "Not uploading {} - does not meet upload conditions".format(
-                    local)
-            print(s)
+                s = f"Skipped upload of {local} to {remote} - already in OSF"
             f.write(s + "\n")
+
+    return locals_, remotes_
+
+
+def upload_files(locals_, remotes_, verbose=True):
+    for local, remote in zip(locals_, remotes_):
+        info = {"local": local, "remote": remote}
+        custom_function(info)
+        if verbose:
+            print(f"Uploading {local} to {remote}")
+        upload_file(local, remote)
 
 
 def clear_osf():
     """
-    Remove all files from this OSF repository. 
+    Remove all files from this OSF repository.
 
     You will need to clear directories after manually.
     """
-    val = input(
-        "WARNING Will delete everything in OSF project, continue? (y/n)... ")
+    val = input("WARNING Will delete everything in OSF project, continue? (y/n)... ")
     if val.lower() == "y":
         files = get_osf_files()
         for f in files:
@@ -175,23 +177,113 @@ def clear_osf():
         return
 
 
-if __name__ == "__main__":
-    # NOTE please change this to be your password and change .osfcli.config
-    your_osf_password = "Can't Steal this!"
-    os.environ["OSF_PASSWORD"] = your_osf_password
-    ignore_list = []
-    location = r"D:\CopyPawel"
-    upload_folder(location, ignore_list)
+def generate_list_of_files(location):
     files = get_osf_files()
     with open(os.path.join(location, "all_files.txt"), "w") as f:
         for item in files:
             f.write(item + "\n")
-    # list_files()
-    # upload_folder(location, ignore_list)
-    # location = r"C:\Users\smartin5\Recordings\Matheus"
-    # print(list_extensions(location))
-    # print(list_osf_extensions())
-    # for f in check_files(ignore_list, verbose=False):
-    #     print("removing {}".format(f))
-    #     remove_file(f)
-    # clear_osf()
+
+
+def generate_list_of_excludes(location):
+    files = check_files(ignore_list, verbose=False)
+    with open(os.path.join(location, "extra.txt"), "w") as f:
+        for item in files:
+            f.write(item + "\n")
+
+
+def write_locations(location, locals_, remotes_):
+    with open(os.path.join(location, "output.txt"), "w") as f:
+        for local, remote in zip(locals_, remotes_):
+            f.write(f"{local};{remote}\n")
+
+
+def read_files(location):
+    with open(location, "r") as f:
+        lines = [line.strip() for line in f.readlines()]
+    return lines
+
+
+def read_local_remotes(location):
+    locals_, remotes_ = [], []
+    with open(location, "r") as f:
+        csv_file = csv.reader(f, delimiter=";")
+        for row in csv_file:
+            locals_.append(row[0])
+            remotes_.append(row[1])
+    return locals_, remotes_
+
+
+if __name__ == "__main__":
+    # NOTE please change this to be your password and change .osfcli.config
+    your_osf_password = "Can't Steal this!"
+    os.environ["OSF_PASSWORD"] = your_osf_password
+    location = r"H:\Emanuela Rizzello data"
+    ignore_list = [
+        "enl",
+        "SET",
+        "xlsx",
+        "pdf",
+        "egf",
+        "plx",
+        "PNG",
+        "log",
+        "hdf5",
+        "mat",
+        "svg",
+        "png",
+        "PLX",
+        "bmp",
+        "JPG",
+        "exe",
+        "ini",
+        "xml",
+        "bas",
+    ]
+
+    parser = ArgumentParser()
+    parser.add_argument(
+        "--generate",
+        "-g",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--find",
+        "-f",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--upload",
+        "-u",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--verify",
+        "-v",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--remove",
+        "-r",
+        action="store_true",
+    )
+
+    parsed = parser.parse_args()
+    if parsed.generate:
+        generate_list_of_files(location)
+
+    if parsed.find:
+        locals_, remotes_ = get_files_to_upload(location, ignore_list)
+        write_locations(location, locals_, remotes_)
+
+    if parsed.upload:
+        locals_, remotes_ = read_local_remotes(os.path.join(location, "output.txt"))
+        upload_files(locals_, remotes_)
+
+    if parsed.verify:
+        generate_list_of_excludes(location)
+
+    if parsed.remove:
+        files = read_files(os.path.join(location, "extra.txt"))
+        for f in files:
+            print(f"removing {f}")
+            remove_file(f)
