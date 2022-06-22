@@ -4,6 +4,7 @@ The github version of osfclient is better than the PYPI version.
 """
 
 import subprocess
+import shutil
 import os
 from argparse import ArgumentParser
 import csv
@@ -77,7 +78,10 @@ def list_osf_extensions():
 def should_use_file(filename, ext_ignore_list):
     """Returns True if filename extension not in ext_ignore_list."""
     ext = os.path.splitext(filename)[1][1:]
-    return not any(ext.startswith(ignore) for ignore in ext_ignore_list)
+    if ext == "eeg":
+        return True
+    else:
+        return not any(ext.startswith(ignore) for ignore in ext_ignore_list)
 
 
 def is_temp_file(filename):
@@ -158,6 +162,16 @@ def upload_files(locals_, remotes_, verbose=True):
         upload_file(local, remote)
 
 
+def copy_files(locals_, out_dir, start_dir, verbose=True):
+    for local in locals_:
+        relative_local = local[len(start_dir + os.sep) :]
+        if verbose:
+            print(f"Copying {relative_local} to {out_dir}")
+        out_loc = os.path.join(out_dir, relative_local)
+        os.makedirs(os.path.dirname(out_loc), exist_ok=True)
+        shutil.copy(local, out_loc)
+
+
 def clear_osf():
     """
     Remove all files from this OSF repository.
@@ -224,6 +238,7 @@ if __name__ == "__main__":
         "xlsx",
         "pdf",
         "egf",
+        "eeg",
         "plx",
         "PNG",
         "log",
@@ -245,26 +260,37 @@ if __name__ == "__main__":
         "--generate",
         "-g",
         action="store_true",
+        help="Generate a list of files curently in OSF",
     )
     parser.add_argument(
         "--find",
         "-f",
         action="store_true",
+        help="Find which files should be uploaded to OSF",
+    )
+    parser.add_argument(
+        "--copy",
+        "-c",
+        action="store_true",
+        help="Copy files to another directory instead of uploading (copied_osf_files)",
     )
     parser.add_argument(
         "--upload",
         "-u",
         action="store_true",
+        help="Upload files to OSF stored in osf_dir/output.txt",
     )
     parser.add_argument(
         "--verify",
         "-v",
         action="store_true",
+        help="Verify that no OSF files uploaded should have been ignored",
     )
     parser.add_argument(
         "--remove",
         "-r",
         action="store_true",
+        help="Remove any files that are not verified correctly",
     )
 
     parsed = parser.parse_args()
@@ -278,6 +304,11 @@ if __name__ == "__main__":
     if parsed.upload:
         locals_, remotes_ = read_local_remotes(os.path.join(location, "output.txt"))
         upload_files(locals_, remotes_)
+
+    if parsed.copy:
+        out_dir = os.path.join(location, "copied_osf_files")
+        locals_, _ = read_local_remotes(os.path.join(location, "output.txt"))
+        copy_files(locals_, out_dir, location, True)
 
     if parsed.verify:
         generate_list_of_excludes(location)
